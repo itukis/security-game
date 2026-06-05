@@ -1,0 +1,99 @@
+export type VulnerabilityType =
+  | "SQL Injection"
+  | "XSS"
+  | "Authentication Bypass";
+
+export type Difficulty = "Easy" | "Medium" | "Hard";
+export type ChallengeStatus = "available" | "locked" | "coming-soon";
+
+export type PatchOption = {
+  id: string;
+  title: string;
+  description: string;
+  patch: string;
+  isCorrect: boolean;
+};
+
+export type VerifyValue = string | boolean | number | Record<string, unknown> | null;
+
+export type ProblemResponse = {
+  id: string;
+  title: string;
+  description: string;
+  vulnerability: VulnerabilityType;
+  targetEndpoint: string;
+  hints: string[];
+  initialCode: string;
+};
+
+export type VerifyResult = {
+  attackBefore: VerifyValue;
+  attackAfter: VerifyValue;
+  passed: boolean;
+};
+
+// Which mock UI to render in the Step 1 preview pane. Each kind has a
+// matching <VulnerableAppPreview> rendering.
+export type PreviewKind = "login" | "comments" | "profile";
+
+// Per-step UI copy. All vulnerability-specific text the UI used to
+// hard-code now lives on the Challenge through these fields.
+export type StepCopy = {
+  step1Description: string;
+  step2Description: string;
+  step3Description: string;
+  step4Description: string;
+  focusBoxTitle: string;
+  focusBoxBody: string;
+  nextActionAttacked: string;
+  nextActionCodeReviewed: string;
+  stepperStep2Subtitle: string;
+};
+
+export type ProgressCopy = {
+  attackedSummary: string;
+};
+
+// Group of presentation fields that come from per-problem static content
+// (lib/problemContent.ts), not from the API. All optional on Challenge so
+// older code paths keep working.
+export type ProblemPresentation = {
+  learnSummary?: string;
+  attackGoal?: string;
+  causeSummary?: string;
+  attackVerifiedMessage?: string;
+  attackVerifyDisclaimer?: string;
+  defenseSuccessFlavor?: string;
+  defenseFailureFlavor?: string;
+  previewKind?: PreviewKind;
+  stepCopy?: StepCopy;
+  progress?: ProgressCopy;
+  explanation: string;
+};
+
+export type Challenge = ProblemPresentation & {
+  id: string;
+  title: string;
+  vulnerability: VulnerabilityType;
+  difficulty: Difficulty;
+  status: ChallengeStatus;
+  description: string;
+  scenario: string;
+  vulnerableAppTitle: string;
+  targetEndpoint: string;
+  hints: string[];
+  initialCode: string;
+  attackPayload: string;
+  attackSuccessMessage: string;
+  patchOptions: PatchOption[];
+  // `explanation` is required for backwards-compatibility with the
+  // existing ResultPanel contract. ProblemPresentation re-declares it
+  // so per-problem content can populate it explicitly.
+};
+
+export type AttackResult = {
+  challengeId: string;
+  success: boolean;
+  payload: string;
+  message: string;
+};

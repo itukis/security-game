@@ -1,0 +1,100 @@
+{
+  "getProblem": {
+    "id": "sqli-login",
+    "title": "SQL Injection in Login Form",
+    "vulnerability": "sqli",
+    "description": "The login endpoint builds SQL queries by concatenating user input directly into the query string. An attacker can inject SQL syntax through the username or password field to bypass authentication entirely. Your goal is to rewrite the query to use parameterized statements so user input is never interpreted as SQL.",
+    "targetEndpoint": "POST /login",
+    "hints": [
+      "What happens if a user types a single quote (') into the username field? Look at how the query is built.",
+      "The vulnerability is that user input becomes part of the SQL syntax. Most SQL libraries support a way to send data separately from the query structure.",
+      "Look up \"parameterized queries\" or \"prepared statements\" for the better-sqlite3 library. The fix changes 2 lines."
+    ],
+    "initialCode": "const express = require('express');\nconst Database = require('better-sqlite3');\nconst path = require('path');\nconst fs = require('fs');\n\nconst app = express();\napp.use(express.json());\n\n// Initialize SQLite database\nconst db = new Database(':memory:');\nconst initSql = fs.readFileSync(path.join(__dirname, 'db', 'init.sql'), 'utf8');\ndb.exec(initSql);\n\n// Health check\napp.get('/health', (req, res) => {\n  res.json({ status: 'ok' });\n});\n\n// VULNERABLE LOGIN ENDPOINT\n// This intentionally uses string concatenation to build SQL queries.\n// This is the vulnerability users must find and fix.\napp.post('/login', (req, res) => {\n  const { username, password } = req.body;\n\n  if (!username || !password) {\n    return res.status(400).json({ success: false, error: 'Missing username or password' });\n  }\n\n  try {\n    const sql = `SELECT * FROM users WHERE username = '${username}' AND password = '${password}'`;\n    const row = db.prepare(sql).get();\n\n    if (row) {\n      res.json({ success: true, user: { id: row.id, username: row.username } });\n    } else {\n      res.json({ success: false });\n    }\n  } catch (err) {\n    res.status(500).json({ success: false, error: err.message });\n  }\n});\n\nconst PORT = process.env.PORT || 3000;\napp.listen(PORT, '0.0.0.0', () => {\n  console.log(`sqli-login vulnerable app listening on port ${PORT}`);\n});\n"
+  },
+  "verifyPassing": {
+    "attackBefore": {
+      "vulnerability": "sqli",
+      "exploited": true,
+      "payload": "' OR 1=1--",
+      "evidence": "Payload \"' OR 1=1--\" returned success:true without valid credentials",
+      "durationMs": 34
+    },
+    "attackAfter": {
+      "vulnerability": "sqli",
+      "exploited": false,
+      "payload": null,
+      "evidence": "All 4 payloads were rejected. Payload \"' OR '1'='1\": success=false; Payload \"' OR 1=1--\": success=false; Payload \"admin' --\": success=false; Payload \"' UNION SELECT 1,'x','y'--\": success=false",
+      "durationMs": 34
+    },
+    "passed": true,
+    "recording": {
+      "firstClear": true,
+      "score": 100
+    },
+    "appliedPatchSummary": {
+      "filesChanged": [
+        "src/server.js"
+      ],
+      "linesAdded": 2,
+      "linesRemoved": 2,
+      "hunks": [
+        {
+          "file": "src/server.js",
+          "lineNumber": 30,
+          "before": "    const row = db.prepare(sql).get();",
+          "after": "    const stmt = db.prepare('SELECT * FROM users WHERE username = ? AND password = ?');"
+        },
+        {
+          "file": "src/server.js",
+          "lineNumber": 31,
+          "before": "",
+          "after": "    const row = stmt.get(username, password);"
+        }
+      ]
+    }
+  },
+  "verifyFailing": {
+    "attackBefore": {
+      "vulnerability": "sqli",
+      "exploited": true,
+      "payload": "' OR 1=1--",
+      "evidence": "Payload \"' OR 1=1--\" returned success:true without valid credentials",
+      "durationMs": 19
+    },
+    "attackAfter": {
+      "vulnerability": "sqli",
+      "exploited": true,
+      "payload": "' OR 1=1--",
+      "evidence": "Payload \"' OR 1=1--\" returned success:true without valid credentials",
+      "durationMs": 18
+    },
+    "passed": false
+  },
+  "getProblemXss": {
+    "id": "xss-comments",
+    "title": "Cross-Site Scripting in Comment Board",
+    "vulnerability": "xss",
+    "description": "The comment board renders user-submitted text directly into HTML without escaping. An attacker can submit a comment containing <script> tags or event handlers that execute when other users view the page. Your goal is to escape user input before rendering it.",
+    "targetEndpoint": "GET /comments",
+    "hints": [
+      "Try submitting a comment containing the text <b>hello</b>. What happens when you view the comments page?",
+      "The server is treating user input as part of the HTML structure. You need to convert special characters (<, >, &, \", ') into their HTML entity equivalents before rendering.",
+      "Write a small helper function that replaces those 5 characters, and apply it to both author and text in the render path."
+    ],
+    "initialCode": "const express = require('express');\n\nconst app = express();\napp.use(express.json());\n\nconst comments = [];\nlet nextId = 1;\n\ncomments.push({ id: nextId++, author: 'admin', text: 'Welcome to the board!' });\n\napp.get('/health', (req, res) => {\n  res.json({ status: 'ok' });\n});\n\napp.post('/comments', (req, res) => {\n  const { author, text } = req.body || {};\n\n  if (typeof author !== 'string' || typeof text !== 'string') {\n    return res.status(400).json({ ok: false, error: 'author and text must be strings' });\n  }\n\n  const id = nextId++;\n  comments.push({ id, author, text });\n  res.json({ ok: true, id });\n});\n\n// VULNERABLE RENDER ENDPOINT\n// This intentionally concatenates user input directly into HTML.\n// This is the vulnerability users must find and fix.\napp.get('/comments', (req, res) => {\n  res.setHeader('Content-Type', 'text/html');\n\n  const rendered = comments\n    .map((c) => `<div class=\"comment\"><b>${c.author}</b>: ${c.text}</div>`)\n    .join('\\n');\n\n  res.send(\n    `<!doctype html>\n<html>\n  <head><title>Comments</title></head>\n  <body>\n    <h1>Comments</h1>\n    ${rendered}\n  </body>\n</html>`\n  );\n});\n\napp.post('/reset', (req, res) => {\n  comments.length = 0;\n  nextId = 1;\n  comments.push({ id: nextId++, author: 'admin', text: 'Welcome to the board!' });\n  res.json({ ok: true });\n});\n\nconst PORT = process.env.PORT || 3000;\napp.listen(PORT, '0.0.0.0', () => {\n  console.log(`xss-comments vulnerable app listening on port ${PORT}`);\n});\n"
+  },
+  "getProblemIdor": {
+    "id": "idor-profile",
+    "title": "Insecure Direct Object Reference in Profile API",
+    "vulnerability": "auth-bypass",
+    "description": "The profile endpoint returns user data based on the ID in the URL, but never verifies that the requesting user owns that profile. Any logged-in user can view anyone else's data by changing the ID. Your goal is to add an authorization check so users can only view their own profile.",
+    "targetEndpoint": "GET /profile/:id",
+    "hints": [
+      "Try requesting /profile/user-2 while sending X-User-Id: user-1. What happens? Is that what should happen?",
+      "The server knows who is making the request (req.userId from the session header) and which profile is being requested (req.params.id). What it does not do is compare them.",
+      "Add a check at the top of the handler: if these two values are different, respond with 403 Forbidden before looking up the profile."
+    ],
+    "initialCode": "const express = require('express');\nconst bodyParser = require('body-parser');\n\nconst app = express();\napp.use(bodyParser.json());\n\n// Mock session middleware: treat the X-User-Id header as the authenticated\n// user. Falls back to 'user-1' so cURL probes work without setting a header.\n// Real JWT/session is intentionally out of scope; this problem is about the\n// missing authorization check, not the auth mechanism itself.\napp.use((req, _res, next) => {\n  req.userId = req.headers['x-user-id'] || 'user-1';\n  next();\n});\n\nconst PROFILES = {\n  'user-1': { id: 'user-1', name: 'Alice', email: 'alice@example.com', secret: 'public bio' },\n  'user-2': { id: 'user-2', name: 'Bob',   email: 'bob@example.com',   secret: 'CONFIDENTIAL: launch codes' },\n  'user-3': { id: 'user-3', name: 'Carol', email: 'carol@example.com', secret: 'CONFIDENTIAL: bank PIN 4823' },\n};\n\napp.get('/health', (_req, res) => {\n  res.json({ status: 'ok' });\n});\n\n// VULNERABLE PROFILE ENDPOINT\n// Looks up profile by URL :id without checking that the authenticated user\n// owns it. Any logged-in user can read any other user's profile by changing\n// the URL — classic IDOR (Insecure Direct Object Reference).\napp.get('/profile/:id', (req, res) => {\n  const profile = PROFILES[req.params.id];\n  if (!profile) {\n    return res.status(404).json({ error: 'Profile not found' });\n  }\n  res.json(profile);\n});\n\nconst PORT = process.env.PORT || 3000;\napp.listen(PORT, '0.0.0.0', () => {\n  console.log(`idor-profile vulnerable app listening on port ${PORT}`);\n});\n"
+  }
+}

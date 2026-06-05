@@ -1,0 +1,61 @@
+services:
+  sqli-login:
+    build:
+      context: ./packages/vulnerable-apps/sqli-login
+    container_name: arena-sqli-login
+    ports:
+      - "3001:3000"
+    networks:
+      - vuln-net
+    cap_add:
+      - NET_ADMIN
+    tmpfs:
+      - /tmp:size=10M
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
+  xss-comments:
+    build:
+      context: ./packages/vulnerable-apps/xss-comments
+    container_name: arena-xss-comments
+    ports:
+      - "3002:3000"
+    networks:
+      - vuln-net
+    cap_add:
+      - NET_ADMIN
+    tmpfs:
+      - /tmp:size=10M
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
+  idor-profile:
+    build:
+      context: ./packages/vulnerable-apps/idor-profile
+    container_name: arena-idor-profile
+    ports:
+      - "3003:3000"
+    networks:
+      - vuln-net
+    cap_add:
+      - NET_ADMIN
+    tmpfs:
+      - /tmp:size=10M
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
+networks:
+  # Regular bridge so host port publishing works. Outbound internet from the
+  # vulnerable apps is blocked at the container level by an iptables OUTPUT
+  # REJECT rule installed in each app's entrypoint (CAP_NET_ADMIN required).
+  vuln-net:
+    driver: bridge

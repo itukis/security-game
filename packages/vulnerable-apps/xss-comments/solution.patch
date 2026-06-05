@@ -1,0 +1,22 @@
+--- a/src/server.js
++++ b/src/server.js
+@@ -24,6 +24,10 @@
+   res.json({ ok: true, id });
+ });
+
++function escapeHtml(s) {
++  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
++}
++
+ // VULNERABLE RENDER ENDPOINT
+ // This intentionally concatenates user input directly into HTML.
+ // This is the vulnerability users must find and fix.
+@@ -31,7 +35,7 @@
+   res.setHeader('Content-Type', 'text/html');
+
+   const rendered = comments
+-    .map((c) => `<div class="comment"><b>${c.author}</b>: ${c.text}</div>`)
++    .map((c) => `<div class="comment"><b>${escapeHtml(c.author)}</b>: ${escapeHtml(c.text)}</div>`)
+     .join('\n');
+
+   res.send(

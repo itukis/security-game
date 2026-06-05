@@ -1,0 +1,12 @@
+--- a/src/server.js
++++ b/src/server.js
+@@ -28,6 +28,9 @@
+ // owns it. Any logged-in user can read any other user's profile by changing
+ // the URL — classic IDOR (Insecure Direct Object Reference).
+ app.get('/profile/:id', (req, res) => {
++  if (req.userId !== req.params.id) {
++    return res.status(403).json({ error: 'Forbidden' });
++  }
+   const profile = PROFILES[req.params.id];
+   if (!profile) {
+     return res.status(404).json({ error: 'Profile not found' });

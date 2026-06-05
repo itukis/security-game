@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* One-shot attention pulses for attack-success / defense-success.
+     Wrapped in `prefers-reduced-motion: no-preference` below so reduced-
+     motion users see no animation. */
+  --animate-attack-flash: attack-flash 1.6s ease-out 1;
+  --animate-defense-flash: defense-flash 1.6s ease-out 1;
+  --animate-verifying-pulse: verifying-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes attack-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.65);
+    background-color: rgba(244, 63, 94, 0.28);
+  }
+  35% {
+    box-shadow: 0 0 36px 8px rgba(244, 63, 94, 0.18);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+    background-color: rgba(244, 63, 94, 0.10);
+  }
+}
+
+@keyframes defense-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+    background-color: rgba(16, 185, 129, 0.25);
+  }
+  35% {
+    box-shadow: 0 0 36px 8px rgba(16, 185, 129, 0.18);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    background-color: rgba(16, 185, 129, 0.10);
+  }
+}
+
+@keyframes verifying-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+/* Suppress motion for users who request it. Tailwind 4's `animate-*` classes
+   inherit from the @theme tokens above; this overrides them at runtime. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-attack-flash,
+  .animate-defense-flash,
+  .animate-verifying-pulse {
+    animation: none !important;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
