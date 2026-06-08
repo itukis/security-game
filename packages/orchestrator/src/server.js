@@ -8,7 +8,7 @@ const { optionalAuth } = require('./auth/authMiddleware');
 const { recordSubmission } = require('./auth/scoring');
 const { runCompose } = require('./dockerCli');
 const axios = require('axios');
-const { PROBLEMS } = require('./applyPatch');
+const { applyPatch, PROBLEMS, resetProblemContainer } = require('./applyPatch');
 const { getServerClient } = require('./auth/supabaseClient');
 
 const ORCHESTRATOR_VERSION = '0.5.0';
@@ -67,15 +67,41 @@ const PROBLEM_META = {
   },
 };
 
-// The verifier mutates shared Docker state. Serialize requests to avoid cross-user races.
-let verifyQueue = Promise.resolve();
-function enqueueVerify(task) {
-  const next = verifyQueue.then(
+// Verify and preview apply both mutate shared Docker state. Serialize requests
+// to avoid cross-user races between container rebuilds/restarts.
+let containerMutationQueue = Promise.resolve();
+function enqueueContainerMutation(task) {
+  const next = containerMutationQueue.then(
     () => task(),
-    (prevErr) => { console.error('Previous verify task failed:', prevErr.message); return task(); }
+    (prevErr) => {
+      console.error('Previous container mutation task failed:', prevErr.message);
+      return task();
+    }
   );
-  verifyQueue = next.catch(() => {});
+  containerMutationQueue = next.catch(() => {});
   return next;
+}
+
+function validatePatchRequest(problemId, patch) {
+  if (!PROBLEM_META[problemId]) {
+    return { status: 404, error: `Problem not found: ${problemId}` };
+  }
+  if (!patch || typeof patch !== 'string') {
+    return { status: 400, error: 'Missing or invalid "patch" field (must be a string)' };
+  }
+
+  const generic = validatePatch(patch);
+  if (!generic.ok) {
+    return { status: 400, error: `Patch failed validation: ${generic.reason}` };
+  }
+
+  try {
+    validatePatchSafety({ problemId, patchString: patch });
+  } catch (err) {
+    return { status: 400, error: `Patch failed validation: ${err.message}` };
+  }
+
+  return null;
 }
 
 app.get('/health', async (req, res) => {
@@ -121,26 +147,13 @@ app.post('/problems/:id/verify', optionalAuth, async (req, res) => {
   const { id } = req.params;
   const { patch } = req.body;
 
-  if (!PROBLEM_META[id]) {
-    return res.status(404).json({ error: `Problem not found: ${id}` });
-  }
-  if (!patch || typeof patch !== 'string') {
-    return res.status(400).json({ error: 'Missing or invalid "patch" field (must be a string)' });
-  }
-
-  const generic = validatePatch(patch);
-  if (!generic.ok) {
-    return res.status(400).json({ error: `Patch failed validation: ${generic.reason}` });
+  const validationError = validatePatchRequest(id, patch);
+  if (validationError) {
+    return res.status(validationError.status).json({ error: validationError.error });
   }
 
   try {
-    validatePatchSafety({ problemId: id, patchString: patch });
-  } catch (err) {
-    return res.status(400).json({ error: `Patch failed validation: ${err.message}` });
-  }
-
-  try {
-    const result = await enqueueVerify(async () => {
+    const result = await enqueueContainerMutation(async () => {
       // Write patch to a temp file so verify() can read it.
       const os = require('os');
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arena-verify-'));
@@ -178,6 +191,32 @@ app.post('/problems/:id/verify', optionalAuth, async (req, res) => {
     } else {
       console.error('Verify error:', msg);
       res.status(500).json({ error: 'Verification failed due to an internal error' });
+    }
+  }
+});
+
+app.patch('/problems/:id/preview', optionalAuth, async (req, res) => {
+  const { id } = req.params;
+  const { patch } = req.body;
+
+  const validationError = validatePatchRequest(id, patch);
+  if (validationError) {
+    return res.status(validationError.status).json({ error: validationError.error });
+  }
+
+  try {
+    await enqueueContainerMutation(async () => {
+      await resetProblemContainer(id);
+      await applyPatch({ problemId: id, patchString: patch });
+    });
+    res.json({ applied: true });
+  } catch (err) {
+    const msg = err.message || 'Internal error';
+    if (msg.includes('patch does not apply') || msg.includes('--check')) {
+      res.status(400).json({ error: 'Patch failed validation: patch does not apply cleanly' });
+    } else {
+      console.error('Preview apply error:', msg);
+      res.status(500).json({ error: 'Preview apply failed due to an internal error' });
     }
   }
 });

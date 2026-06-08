@@ -45,6 +45,12 @@ export type VerifyResult = {
   passed: boolean;
 };
 
+export type PreviewServerStatus =
+  | "baseline"
+  | "applied"
+  | "verified"
+  | "reset";
+
 // Which mock UI to render in the Step 1 preview pane. Each kind has a
 // matching <VulnerableAppPreview> rendering.
 export type PreviewKind = "login" | "comments" | "profile" | "download" | "ping";

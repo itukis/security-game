@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { PreviewServerStatus } from "@/lib/challengeTypes";
 import type { ProblemId } from "@/lib/problemContent";
 
 // Note: a component named `VulnerableAppPreview` already exists for the
@@ -28,6 +29,7 @@ interface LiveAppIframeProps {
   reloading?: boolean;
   reloadingMessage?: string;
   height?: number;
+  previewStatus?: PreviewServerStatus;
 }
 
 export function LiveAppIframe({
@@ -36,6 +38,7 @@ export function LiveAppIframe({
   reloading = false,
   reloadingMessage = "サイトを再読み込み中...",
   height = 360,
+  previewStatus = "baseline",
 }: LiveAppIframeProps) {
   const [loaded, setLoaded] = useState(false);
   const port = PORT_BY_PROBLEM[problemId];
@@ -53,6 +56,7 @@ export function LiveAppIframe({
 
   return (
     <section className="rounded-lg border border-cyan-300/20 bg-zinc-950 p-3 shadow-xl shadow-black/30 sm:p-4">
+      <PreviewStatusBadge status={previewStatus} />
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-3">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">
@@ -98,11 +102,57 @@ export function LiveAppIframe({
       </div>
 
       <p className="mt-3 text-xs leading-5 text-zinc-500">
-        パッチ適用後、コンテナ再起動を待ってから再読み込みされます (約12秒)。
+        修正検証後はコンテナがパッチ適用状態になり、約15秒後に元の脆弱状態へ自動リセットされます。
       </p>
     </section>
   );
 }
+
+function PreviewStatusBadge({
+  status,
+}: {
+  status: PreviewServerStatus;
+}) {
+  const copy = PREVIEW_STATUS_COPY[status];
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={`mb-3 flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2 text-xs font-bold ${copy.className}`}
+    >
+      <span>{copy.label}</span>
+      {copy.badge ? (
+        <span className="rounded border border-current/30 bg-black/20 px-2 py-1">
+          {copy.badge}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+const PREVIEW_STATUS_COPY: Record<
+  PreviewServerStatus,
+  { label: string; badge?: string; className: string }
+> = {
+  baseline: {
+    label: "現在のサーバー状態（未修正）",
+    className: "border-zinc-700 bg-zinc-900 text-zinc-300",
+  },
+  applied: {
+    label: "修正後のサーバー状態",
+    badge: "✅ 反映完了",
+    className: "border-emerald-300/50 bg-emerald-300/10 text-emerald-100",
+  },
+  verified: {
+    label: "✅ 防御成功 — 攻撃が無効化されました",
+    badge: "✅ 修正が反映されました — 攻撃が防御されています",
+    className: "border-emerald-300/50 bg-emerald-300/10 text-emerald-100",
+  },
+  reset: {
+    label: "サーバーがリセットされました（再挑戦できます）",
+    className: "border-amber-300/40 bg-amber-300/10 text-amber-100",
+  },
+};
 
 export const liveAppPorts = PORT_BY_PROBLEM;
 export type LiveAppProblemId = ProblemId;
