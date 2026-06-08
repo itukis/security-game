@@ -43,6 +43,14 @@ async function waitForHealth(port, timeoutMs = 15000) {
   throw new Error(`Container did not become healthy within ${timeoutMs}ms`);
 }
 
+async function resetProblemContainer(problemId) {
+  const problem = PROBLEMS[problemId];
+  if (!problem) throw new Error(`Unknown problem: ${problemId}`);
+
+  await runCompose(['up', problem.composeService, '--build', '-d', '--force-recreate']);
+  await waitForHealth(problem.port, 30000);
+}
+
 async function applyPatch({ problemId, patchString }) {
   const problem = PROBLEMS[problemId];
   if (!problem) throw new Error(`Unknown problem: ${problemId}`);
@@ -100,4 +108,4 @@ async function applyPatch({ problemId, patchString }) {
   }
 }
 
-module.exports = { applyPatch, PROBLEMS };
+module.exports = { applyPatch, PROBLEMS, resetProblemContainer };

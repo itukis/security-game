@@ -59,7 +59,7 @@ export function CodeEditor({
             disabled={readOnly}
             className="rounded border border-zinc-700 bg-zinc-950 px-3 py-1 text-xs font-bold text-zinc-200 transition hover:border-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
-            初期コードに戻す
+            元のコードに戻す
           </button>
         </div>
       </div>

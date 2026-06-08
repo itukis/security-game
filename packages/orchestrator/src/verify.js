@@ -1,26 +1,7 @@
 const fs = require('fs');
 const { runAttack } = require('../../attack-engine/src/runner');
-const { applyPatch, PROBLEMS } = require('./applyPatch');
+const { applyPatch, PROBLEMS, resetProblemContainer } = require('./applyPatch');
 const { runCompose } = require('./dockerCli');
-
-async function resetContainer(problemId) {
-  // Recreate only the target service from the host baseline.
-  const problem = PROBLEMS[problemId];
-  await runCompose(['up', problem.composeService, '--build', '-d', '--force-recreate']);
-
-  // Wait for health
-  const axios = require('axios');
-  const start = Date.now();
-  while (Date.now() - start < 30000) {
-    try {
-      await axios.get(`http://localhost:${problem.port}/health`, { timeout: 1000 });
-      return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 500));
-    }
-  }
-  throw new Error('Container did not become healthy after rebuild');
-}
 
 async function verify({ problemId, patchPath }) {
   const patchString = fs.readFileSync(patchPath, 'utf8');
@@ -32,7 +13,7 @@ async function verify({ problemId, patchPath }) {
 
   // Step 1: Reset to baseline to ensure clean state
   console.error('Resetting container to baseline...');
-  await resetContainer(problemId);
+  await resetProblemContainer(problemId);
 
   // Step 2: Run attack on baseline (should succeed)
   console.error('Running baseline attack...');

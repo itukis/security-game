@@ -11,8 +11,12 @@ import { ProgressStepper } from "@/components/ProgressStepper";
 import { ResultPanel } from "@/components/ResultPanel";
 import { ScoreSummary } from "@/components/ScoreSummary";
 import { VulnerableAppPreview } from "@/components/VulnerableAppPreview";
-import { verifyPatch } from "@/lib/api/challenges";
-import type { Challenge, VerifyResult } from "@/lib/challengeTypes";
+import { previewApplyPatch, verifyPatch } from "@/lib/api/challenges";
+import type {
+  Challenge,
+  PreviewServerStatus,
+  VerifyResult,
+} from "@/lib/challengeTypes";
 import {
   DIFFICULTY,
   DIFFICULTY_LABELS,
@@ -20,10 +24,10 @@ import {
 } from "@/lib/difficultyConfig";
 import { makePatch } from "@/lib/makePatch";
 import { useToast } from "@/components/Toast";
-import { SCORE_CONFIG } from "@/lib/scoreConfig";
 
 type AttackState = "idle" | "running" | "success" | "failure";
 type DefenseState = "idle" | "checking" | "success" | "failure" | "error";
+type PreviewApplyState = "idle" | "applying" | "applied" | "error";
 
 const VERIFY_LOADING_STEPS = [
   "検証中",
@@ -33,6 +37,8 @@ const VERIFY_LOADING_STEPS = [
 ];
 
 const PATCH_FILE_PATH = "src/server.js";
+const XSS_PREVIEW_AUTHOR = "attacker";
+const XSS_PREVIEW_PAYLOAD = "<script>window.__pwned__=true</script>";
 
 const MODE_ORDER: DifficultyMode[] = ["select", "editPreview", "editOnly"];
 
@@ -53,6 +59,18 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
   const [, setCompletedAt] = useState<number | null>(null);
   const [previewReloadKey, setPreviewReloadKey] = useState(0);
   const [previewReloading, setPreviewReloading] = useState(false);
+  // Auto-test trigger for interactive previews (sqli-login / idor-profile):
+  // bumping this re-runs the exploit attempt against the live container to
+  // show that the user's fix now blocks it.
+  const [previewAutoTestNonce, setPreviewAutoTestNonce] = useState(0);
+  // Status badge shown on top of the preview after a successful verify.
+  const [previewStatus, setPreviewStatus] =
+    useState<PreviewServerStatus>("baseline");
+  const [previewApplyState, setPreviewApplyState] =
+    useState<PreviewApplyState>("idle");
+  const [previewApplyError, setPreviewApplyError] = useState<string | null>(
+    null,
+  );
   const [hintsRevealed, setHintsRevealed] = useState(0);
   // Step 1 no longer auto-advances to Step 2 when the attack succeeds —
   // the user must explicitly click "次へ" so they can keep poking at the
@@ -98,12 +116,26 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
           : "修正案を選択すると検証できます。"
         : null;
 
+  function resetPreviewApplyState() {
+    setPreviewStatus("baseline");
+    setPreviewApplyState("idle");
+    setPreviewApplyError(null);
+    setPreviewReloading(false);
+  }
+
+  function makeCurrentPatch() {
+    return isEditorMode
+      ? makePatch(PATCH_FILE_PATH, challenge.initialCode, editorCode)
+      : selectedPatch?.patch;
+  }
+
   function handleModeChange(next: DifficultyMode) {
     if (next === mode) return;
     setMode(next);
     handleResetMission();
     setEditorCode(challenge.initialCode);
     setHintsRevealed(0);
+    resetPreviewApplyState();
   }
 
   function handleRunAttack() {
@@ -116,6 +148,7 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
     setVerifyResult(null);
     setVerifyError(null);
     setLoadingStep(null);
+    resetPreviewApplyState();
     setScore((prev) => Math.max(prev, Math.min(difficulty.scoreCap, 25)));
   }
 
@@ -131,6 +164,7 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
     setVerifyResult(null);
     setVerifyError(null);
     setLoadingStep(null);
+    resetPreviewApplyState();
   }
 
   function handleSelectPatch(patchId: string) {
@@ -139,10 +173,12 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
     setVerifyResult(null);
     setVerifyError(null);
     setLoadingStep(null);
+    resetPreviewApplyState();
   }
 
   function handleEditorChange(next: string) {
     setEditorCode(next);
+    resetPreviewApplyState();
     if (defenseState !== "idle") {
       setDefenseState("idle");
       setVerifyResult(null);
@@ -156,6 +192,7 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
     setVerifyResult(null);
     setVerifyError(null);
     setLoadingStep(null);
+    resetPreviewApplyState();
     setScore(hasAttacked ? Math.min(difficulty.scoreCap, 25) : 0);
   }
 
@@ -167,6 +204,7 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
     setVerifyResult(null);
     setVerifyError(null);
     setLoadingStep(null);
+    resetPreviewApplyState();
   }
 
   function handleResetMission() {
@@ -180,16 +218,100 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
     setLoadingStep(null);
     setScore(0);
     setCompletedAt(null);
+    resetPreviewApplyState();
+    setPreviewAutoTestNonce(0);
   }
 
   function handleRevealHint() {
     setHintsRevealed((n) => Math.min(challenge.hints.length, n + 1));
   }
 
+  async function postXssPreviewPayload() {
+    const maxAttempts = 5;
+    let lastError: unknown = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        const res = await fetch(`/api/preview/${challenge.id}/comments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            author: XSS_PREVIEW_AUTHOR,
+            text: XSS_PREVIEW_PAYLOAD,
+          }),
+        });
+
+        if (res.ok) return;
+        lastError = new Error(`HTTP ${res.status}`);
+      } catch (err) {
+        lastError = err;
+      }
+
+      await wait(300);
+    }
+
+    throw lastError instanceof Error
+      ? lastError
+      : new Error("XSSプレビューの自動投稿に失敗しました。");
+  }
+
+  async function refreshPreviewAfterPatch(
+    nextStatus: PreviewServerStatus,
+    delayMs = 0,
+  ) {
+    if (!difficulty.showSite) return;
+
+    setPreviewReloading(true);
+    try {
+      if (delayMs > 0) {
+        await wait(delayMs);
+      }
+      if (challenge.id === "xss-comments") {
+        await postXssPreviewPayload();
+      }
+      setPreviewReloadKey((k) => k + 1);
+      setPreviewAutoTestNonce((n) => n + 1);
+      setPreviewStatus(nextStatus);
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? `プレビュー自動テストに失敗しました: ${err.message}`
+          : "プレビュー自動テストに失敗しました",
+      );
+    } finally {
+      setPreviewReloading(false);
+    }
+  }
+
+  async function handlePreviewApply() {
+    const patchString = makeCurrentPatch();
+
+    if (!patchString) {
+      return;
+    }
+
+    setPreviewApplyState("applying");
+    setPreviewApplyError(null);
+    setPreviewReloading(true);
+
+    try {
+      await previewApplyPatch(challenge.id, patchString);
+      setPreviewApplyState("applied");
+      await refreshPreviewAfterPatch("applied");
+      toast.success("プレビューに反映しました");
+    } catch (error) {
+      setPreviewApplyState("error");
+      setPreviewStatus("baseline");
+      setPreviewApplyError(
+        error instanceof Error ? error.message : "パッチ適用失敗",
+      );
+      setPreviewReloading(false);
+      toast.error("パッチ適用失敗");
+    }
+  }
+
   async function handleSubmitPatch() {
-    const patchString = isEditorMode
-      ? makePatch(PATCH_FILE_PATH, challenge.initialCode, editorCode)
-      : selectedPatch?.patch;
+    const patchString = makeCurrentPatch();
 
     if (!patchString) {
       return;
@@ -220,11 +342,10 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
         setCompletedAt(Date.now());
         toast.success("問題をクリアしました！");
         if (difficulty.showSite) {
-          setPreviewReloading(true);
+          void refreshPreviewAfterPatch("verified", 800);
           window.setTimeout(() => {
-            setPreviewReloadKey((k) => k + 1);
-            setPreviewReloading(false);
-          }, 12000);
+            setPreviewStatus("reset");
+          }, 15000);
         }
       } else {
         toast.error("防御失敗");
@@ -432,21 +553,46 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
                         : "grid gap-4"
                     }
                   >
-                    <CodeEditor
-                      value={editorCode}
-                      language="javascript"
-                      onChange={handleEditorChange}
-                      onReset={() => handleEditorChange(challenge.initialCode)}
-                    />
+                    <div className="flex flex-col gap-2">
+                      <p className="text-xs leading-5 text-zinc-500">
+                        脆弱な箇所を見つけて、該当行だけを修正してください。
+                        コード全体を置き換えると正しく検証できません。
+                      </p>
+                      <CodeEditor
+                        value={editorCode}
+                        language="javascript"
+                        onChange={handleEditorChange}
+                        onReset={() => handleEditorChange(challenge.initialCode)}
+                      />
+                      {mode === "editPreview" ? (
+                        <PreviewApplyControl
+                          disabledReason={
+                            !hasEditedCode
+                              ? "コードを編集するとプレビューに反映できます。"
+                              : previewApplyState === "applied"
+                                ? "現在の編集内容は反映済みです。"
+                                : null
+                          }
+                          error={previewApplyError}
+                          state={previewApplyState}
+                          onApply={handlePreviewApply}
+                        />
+                      ) : null}
+                    </div>
                     {showLivePreview ? (
                       liveViewMode === "iframe" ? (
                         <LiveAppIframe
                           problemId={challenge.id}
                           reloadKey={previewReloadKey}
                           reloading={previewReloading}
+                          previewStatus={previewStatus}
                         />
                       ) : (
-                        <VulnerableAppPreview challenge={challenge} />
+                        <VulnerableAppPreview
+                          challenge={challenge}
+                          autoTestNonce={previewAutoTestNonce}
+                          previewStatus={previewStatus}
+                        />
                       )
                     ) : null}
                   </div>
@@ -480,9 +626,14 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
                         problemId={challenge.id}
                         reloadKey={previewReloadKey}
                         reloading={previewReloading}
+                        previewStatus={previewStatus}
                       />
                     ) : (
-                      <VulnerableAppPreview challenge={challenge} />
+                      <VulnerableAppPreview
+                        challenge={challenge}
+                        autoTestNonce={previewAutoTestNonce}
+                        previewStatus={previewStatus}
+                      />
                     )}
                   </div>
                 ) : null}
@@ -666,6 +817,59 @@ function HintItem({ index, text }: { index: number; text: string }) {
         <p className="mt-2 px-1 text-sm leading-6 text-zinc-200">{text}</p>
       ) : null}
     </li>
+  );
+}
+
+function PreviewApplyControl({
+  disabledReason,
+  error,
+  onApply,
+  state,
+}: {
+  disabledReason: string | null;
+  error: string | null;
+  onApply: () => void;
+  state: PreviewApplyState;
+}) {
+  const applying = state === "applying";
+  const applied = state === "applied";
+  const disabled = applying || applied || Boolean(disabledReason);
+
+  return (
+    <div className="rounded-lg border border-emerald-300/20 bg-zinc-950 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-200">
+          Preview Apply
+        </p>
+        {applied ? (
+          <span className="rounded border border-emerald-300/40 bg-emerald-300/10 px-2 py-1 text-xs font-bold text-emerald-100">
+            ✅ 反映完了
+          </span>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        onClick={onApply}
+        disabled={disabled}
+        className="mt-3 inline-flex h-11 w-full items-center justify-center rounded border border-emerald-300/60 bg-emerald-300 px-4 text-sm font-black text-zinc-950 shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:ring-offset-2 focus:ring-offset-zinc-950 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:shadow-none"
+      >
+        {applying ? "サーバーに反映中..." : "プレビューに反映"}
+      </button>
+      {disabledReason ? (
+        <p className="mt-2 text-xs leading-5 text-zinc-500">
+          {disabledReason}
+        </p>
+      ) : null}
+      {state === "error" && error ? (
+        <div
+          role="alert"
+          className="mt-3 rounded border border-rose-300/40 bg-rose-300/10 p-3 text-xs leading-5 text-rose-100"
+        >
+          <p className="font-bold">パッチ適用失敗</p>
+          <p className="mt-1 break-words">{error}</p>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -1027,60 +1231,6 @@ function getResultSummary(defenseState: DefenseState) {
   }
 
   return "修正案選択後に実行";
-}
-
-function formatDuration(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const m = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
-  const s = (totalSeconds % 60).toString().padStart(2, "0");
-  return `${m}:${s}`;
-}
-
-function ScoreCard({
-  score,
-  hintsUsed,
-  attempts,
-  durationMs,
-}: {
-  score: number;
-  hintsUsed: number;
-  attempts: number;
-  durationMs?: number;
-}) {
-  return (
-    <div className="rounded-lg border border-zinc-700 bg-zinc-900/90 p-5">
-      <p className="text-xs font-black uppercase tracking-[0.15em] text-zinc-500">
-        スコア
-      </p>
-      <div className="mt-3 flex items-baseline gap-1">
-        <span className="text-5xl font-black tabular-nums text-white">
-          {score}
-        </span>
-        <span className="text-lg font-bold text-zinc-500">
-          / {SCORE_CONFIG.base}
-        </span>
-      </div>
-      <div className="mt-4 grid gap-1.5">
-        <div className="flex items-center justify-between gap-2 text-sm">
-          <span className="text-zinc-400">使用ヒント数</span>
-          <span className="font-bold text-zinc-200">{hintsUsed}</span>
-        </div>
-        <div className="flex items-center justify-between gap-2 text-sm">
-          <span className="text-zinc-400">挑戦回数</span>
-          <span className="font-bold text-zinc-200">{attempts}</span>
-        </div>
-        {SCORE_CONFIG.speedBonus.enabled && durationMs !== undefined ? (
-          <div className="flex items-center justify-between gap-2 text-sm">
-            <span className="text-zinc-400">所要時間</span>
-            <span className="font-bold text-zinc-200">
-              {formatDuration(durationMs)}
-            </span>
-          </div>
-        ) : null}
-      </div>
-      <p className="mt-4 text-xs text-zinc-600">※ 表示得点はゲーム内目安です</p>
-    </div>
-  );
 }
 
 function HintPanel({

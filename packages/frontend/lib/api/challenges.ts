@@ -12,6 +12,10 @@ import {
 import { supabase } from "@/lib/supabase";
 
 export const DEFAULT_PROBLEM_ID: ProblemId = "sqli-login";
+const STATIC_ONLY_PROBLEM_IDS = new Set<ProblemId>([
+  "path-traversal-files",
+  "cmd-injection-ping",
+]);
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ??
@@ -43,7 +47,7 @@ export async function getProblems(): Promise<Challenge[]> {
 
 export async function getProblem(id: string): Promise<Challenge | undefined> {
   if (USE_MOCK) {
-    return mockChallenges.find((challenge) => challenge.id === id);
+    return getStaticChallenge(id);
   }
 
   const response = await fetch(`${API_BASE_URL}/problems/${id}`, {
@@ -52,7 +56,7 @@ export async function getProblem(id: string): Promise<Challenge | undefined> {
 
   if (!response.ok) {
     if (response.status === 404) {
-      return undefined;
+      return getStaticChallenge(id);
     }
 
     throw new Error(`Problem API error (${response.status})`);
@@ -66,7 +70,7 @@ export async function verifyPatch(
   id: string,
   patch: string,
 ): Promise<VerifyResult> {
-  if (USE_MOCK) {
+  if (USE_MOCK || isStaticOnlyProblem(id)) {
     return verifyMockPatch(id, patch);
   }
 
@@ -99,8 +103,44 @@ export async function verifyPatch(
   }
 }
 
+export async function previewApplyPatch(
+  id: string,
+  patch: string,
+): Promise<{ applied: true }> {
+  if (USE_MOCK || isStaticOnlyProblem(id)) {
+    await wait(800);
+    return { applied: true };
+  }
+
+  const response = await fetch(`${API_BASE_URL}/problems/${id}/preview`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(await authHeader()),
+    },
+    body: JSON.stringify({ patch }),
+  });
+  const responseText = await response.text();
+
+  if (!response.ok) {
+    throw new Error(
+      `Preview API error (${response.status})${formatErrorDetail(responseText)}`,
+    );
+  }
+
+  try {
+    const result = JSON.parse(responseText) as { applied?: unknown };
+    if (result.applied !== true) {
+      throw new Error("applied flag missing");
+    }
+    return { applied: true };
+  } catch {
+    throw new Error("Preview APIのレスポンスを解析できませんでした。");
+  }
+}
+
 function verifyMockPatch(id: string, patch: string): VerifyResult {
-  const challenge = mockChallenges.find((item) => item.id === id);
+  const challenge = getStaticChallenge(id);
   const selectedPatch = challenge?.patchOptions.find(
     (patchOption) => patchOption.patch === patch,
   );
@@ -115,6 +155,14 @@ function verifyMockPatch(id: string, patch: string): VerifyResult {
   };
 }
 
+function getStaticChallenge(id: string): Challenge | undefined {
+  return mockChallenges.find((challenge) => challenge.id === id);
+}
+
+function isStaticOnlyProblem(id: string): boolean {
+  return STATIC_ONLY_PROBLEM_IDS.has(id as ProblemId);
+}
+
 function mapProblemToChallenge(problem: ProblemResponse): Challenge {
   // Merge the live API payload with frontend-only presentation content
   // (causeSummary, stepCopy, defenseSuccessFlavor, etc.) from problemContent.
@@ -125,7 +173,7 @@ function mapProblemToChallenge(problem: ProblemResponse): Challenge {
   return {
     id: problem.id,
     title: problem.title,
-    vulnerability: problem.vulnerability,
+    vulnerability: content?.vulnerability ?? problem.vulnerability,
     difficulty: "Easy",
     status: "available",
     description: content?.shortDescription ?? problem.description,
@@ -172,4 +220,10 @@ function formatErrorDetail(responseText: string) {
   } catch {
     return `: ${responseText}`;
   }
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }

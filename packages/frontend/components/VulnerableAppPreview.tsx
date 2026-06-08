@@ -7,14 +7,22 @@ import {
   useState,
   type FormEvent,
 } from "react";
-import type { Challenge } from "@/lib/challengeTypes";
+import type { Challenge, PreviewServerStatus } from "@/lib/challengeTypes";
 
 type Tone = "neutral" | "danger" | "safe";
 type PreviewKind = "login" | "comments" | "profile" | "download" | "ping";
+type InlineHint = {
+  label: string;
+  text: string;
+};
 
 interface VulnerableAppPreviewProps {
   challenge: Challenge;
   onExploitDetected?: () => void;
+  // Bumping this nonce triggers the interactive sub-previews to auto-re-run
+  // the exploit against the live container.
+  autoTestNonce?: number;
+  previewStatus?: PreviewServerStatus;
 }
 
 // Each preview talks to the real container via /api/preview/<problem>/<path>,
@@ -23,6 +31,8 @@ interface VulnerableAppPreviewProps {
 export function VulnerableAppPreview({
   challenge,
   onExploitDetected,
+  autoTestNonce = 0,
+  previewStatus = "baseline",
 }: VulnerableAppPreviewProps) {
   const kind = isPreviewKind(challenge.previewKind)
     ? challenge.previewKind
@@ -36,6 +46,7 @@ export function VulnerableAppPreview({
 
   return (
     <div className="rounded-lg border border-cyan-300/20 bg-zinc-950 p-4">
+      <PreviewStatusBadge status={previewStatus} />
       <div className="mb-4 flex items-center justify-between gap-3 border-b border-zinc-800 pb-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
@@ -55,6 +66,7 @@ export function VulnerableAppPreview({
         <LoginPreview
           problemId={challenge.id}
           onExploitDetected={onExploitDetected}
+          autoTestNonce={autoTestNonce}
         />
       ) : null}
 
@@ -62,6 +74,7 @@ export function VulnerableAppPreview({
         <CommentsPreview
           problemId={challenge.id}
           onExploitDetected={onExploitDetected}
+          autoTestNonce={autoTestNonce}
         />
       ) : null}
 
@@ -69,6 +82,7 @@ export function VulnerableAppPreview({
         <ProfilePreview
           problemId={challenge.id}
           onExploitDetected={onExploitDetected}
+          autoTestNonce={autoTestNonce}
         />
       ) : null}
 
@@ -87,6 +101,52 @@ export function VulnerableAppPreview({
     </div>
   );
 }
+
+function PreviewStatusBadge({
+  status,
+}: {
+  status: PreviewServerStatus;
+}) {
+  const copy = PREVIEW_STATUS_COPY[status];
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={`mb-3 flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2 text-xs font-bold ${copy.className}`}
+    >
+      <span>{copy.label}</span>
+      {copy.badge ? (
+        <span className="rounded border border-current/30 bg-black/20 px-2 py-1">
+          {copy.badge}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+const PREVIEW_STATUS_COPY: Record<
+  PreviewServerStatus,
+  { label: string; badge?: string; className: string }
+> = {
+  baseline: {
+    label: "現在のサーバー状態（未修正）",
+    className: "border-zinc-700 bg-zinc-900 text-zinc-300",
+  },
+  applied: {
+    label: "修正後のサーバー状態",
+    badge: "✅ 反映完了",
+    className: "border-emerald-300/50 bg-emerald-300/10 text-emerald-100",
+  },
+  verified: {
+    label: "✅ 防御成功 — 攻撃が無効化されました",
+    badge: "✅ 修正が反映されました — 攻撃が防御されています",
+    className: "border-emerald-300/50 bg-emerald-300/10 text-emerald-100",
+  },
+  reset: {
+    label: "サーバーがリセットされました（再挑戦できます）",
+    className: "border-amber-300/40 bg-amber-300/10 text-amber-100",
+  },
+};
 
 function isPreviewKind(value: unknown): value is PreviewKind {
   return (
@@ -143,12 +203,49 @@ function ResultBanner({ tone, message }: { tone: Tone; message: string }) {
   );
 }
 
+function InlineHintSection({ hints }: { hints: InlineHint[] }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="mt-3 text-xs leading-5 text-zinc-500">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+        className="inline-flex items-center text-xs font-semibold text-zinc-500 underline-offset-4 transition hover:text-zinc-800 hover:underline"
+      >
+        💡 ヒント
+      </button>
+      {open ? (
+        <ul
+          role="status"
+          className="mt-2 grid gap-1 text-xs leading-5 text-zinc-600"
+        >
+          {hints.map((hint) => (
+            <li key={hint.label} className="flex gap-1.5">
+              <span aria-hidden="true">▸</span>
+              <span>
+                <span className="font-semibold text-zinc-700">
+                  {hint.label}:
+                </span>{" "}
+                {hint.text}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 function previewUrl(problemId: string, ...parts: string[]) {
   return `/api/preview/${problemId}/${parts.join("/")}`;
 }
 
 const CONTAINER_DOWN_MESSAGE =
   "コンテナが起動していません。docker compose up を確認してください。";
+const MANUAL_INPUT_INSTRUCTION =
+  "ヒントを見ながら自分でフィールドへ入力し、「Sign in」で送信します。";
 
 const SQLI_NORMAL_USERNAME = "rookie@example.test";
 const SQLI_NORMAL_PASSWORD = "password123";
@@ -156,13 +253,25 @@ const SQLI_NORMAL_PASSWORD = "password123";
 // `AND password = '...'` clause, so any value passes auth.
 const SQLI_EXPLOIT_USERNAME = "' OR '1'='1' --";
 const SQLI_EXPLOIT_PASSWORD = "anything";
+const SQLI_HINTS: InlineHint[] = [
+  {
+    label: "通常ログイン",
+    text: `${SQLI_NORMAL_USERNAME} / ${SQLI_NORMAL_PASSWORD}`,
+  },
+  {
+    label: "攻撃",
+    text: "USERNAME欄に ' OR '1'='1' -- を入力（パスワードは何でもOK）",
+  },
+];
 
 function LoginPreview({
   problemId,
   onExploitDetected,
+  autoTestNonce = 0,
 }: {
   problemId: string;
   onExploitDetected?: () => void;
+  autoTestNonce?: number;
 }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -174,33 +283,21 @@ function LoginPreview({
     detail?: string;
   } | null>(null);
 
-  function fillNormal() {
-    setUsername(SQLI_NORMAL_USERNAME);
-    setPassword(SQLI_NORMAL_PASSWORD);
-  }
-
-  function fillExploit() {
-    setUsername(SQLI_EXPLOIT_USERNAME);
-    setPassword(SQLI_EXPLOIT_PASSWORD);
-  }
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function performLogin(creds: { username: string; password: string }) {
     setLoading(true);
     setResult(null);
-
     try {
       const res = await fetch(previewUrl(problemId, "login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify(creds),
       });
 
       const data = await res.json().catch(() => ({}));
 
       if (res.status === 502) {
         setResult({ tone: "neutral", message: CONTAINER_DOWN_MESSAGE });
-        return;
+        return { detected: false };
       }
 
       if (data?.success === true) {
@@ -212,23 +309,49 @@ function LoginPreview({
             : undefined,
         });
         setExploited(true);
-        onExploitDetected?.();
-      } else {
-        setResult({
-          tone: "safe",
-          message: "ログイン失敗 — 認証は正常です",
-        });
+        return { detected: true };
       }
+      setResult({
+        tone: "safe",
+        message: "ログイン失敗 — 認証は正常です",
+      });
+      return { detected: false };
     } catch (err) {
       setResult({
         tone: "neutral",
         message: CONTAINER_DOWN_MESSAGE,
         detail: err instanceof Error ? err.message : undefined,
       });
+      return { detected: false };
     } finally {
       setLoading(false);
     }
   }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    const out = await performLogin({ username, password });
+    if (out.detected) onExploitDetected?.();
+  }
+
+  // Auto-re-run the SQLi payload after a successful verify so the user
+  // sees the login is now blocked. We replay the explicit values rather
+  // than reading state, since the state update would race with the fetch.
+  // The setState calls populate the form fields so the user sees what
+  // was tested; deferred via queueMicrotask so we're not setting state
+  // synchronously inside the effect body (React 19 lint rule).
+  useEffect(() => {
+    if (autoTestNonce <= 0) return;
+    queueMicrotask(() => {
+      setUsername(SQLI_EXPLOIT_USERNAME);
+      setPassword(SQLI_EXPLOIT_PASSWORD);
+      void performLogin({
+        username: SQLI_EXPLOIT_USERNAME,
+        password: SQLI_EXPLOIT_PASSWORD,
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoTestNonce]);
 
   return (
     <form
@@ -245,24 +368,7 @@ function LoginPreview({
         </div>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2">
-        <button
-          type="button"
-          onClick={fillNormal}
-          className="rounded border border-zinc-300 bg-white px-3 py-2 text-xs font-bold text-zinc-700 transition hover:border-zinc-500 hover:bg-zinc-50"
-        >
-          通常ログインを試す
-        </button>
-        <button
-          type="button"
-          onClick={fillExploit}
-          className="rounded border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 transition hover:bg-rose-100"
-        >
-          SQLインジェクションを試す
-        </button>
-      </div>
-
-      <label className="mt-4 block text-xs font-bold uppercase tracking-[0.16em] text-zinc-600">
+      <label className="block text-xs font-bold uppercase tracking-[0.16em] text-zinc-600">
         Username / Email <span className="text-rose-700">← 注入対象</span>
         <input
           className="mt-2 h-11 w-full rounded border border-zinc-300 bg-white px-3 font-mono text-sm text-zinc-800"
@@ -294,6 +400,7 @@ function LoginPreview({
       >
         {loading ? "送信中..." : "Sign in"}
       </button>
+      <InlineHintSection hints={SQLI_HINTS} />
 
       {result ? (
         <>
@@ -317,27 +424,36 @@ function LoginPreview({
             </p>
           ) : null}
         </>
-      ) : (
-        <p className="mt-3 text-xs leading-5 text-zinc-500">
-          上のクイック試行ボタン、または直接フィールドを編集して「Sign
-          in」で送信します。
-        </p>
-      )}
+      ) : null}
+      <p className="mt-3 text-xs leading-5 text-zinc-500">
+        {MANUAL_INPUT_INSTRUCTION}
+      </p>
     </form>
   );
 }
 
-const XSS_NORMAL_TEXT = "looks great!";
 const XSS_EXPLOIT_TEXT = "<script>alert('xss')</script>";
+const XSS_HINTS: InlineHint[] = [
+  {
+    label: "通常",
+    text: "適当なコメントを入力して送信",
+  },
+  {
+    label: "攻撃",
+    text: "コメント欄に <script>alert('xss')</script> を入力",
+  },
+];
 
 function CommentsPreview({
   problemId,
   onExploitDetected,
+  autoTestNonce = 0,
 }: {
   problemId: string;
   onExploitDetected?: () => void;
+  autoTestNonce?: number;
 }) {
-  const [author, setAuthor] = useState("happy_user");
+  const [author, setAuthor] = useState("");
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [exploited, setExploited] = useState(false);
@@ -349,16 +465,6 @@ function CommentsPreview({
   const [iframeKey, setIframeKey] = useState(0);
 
   const containsScript = useCallback((s: string) => /<script\b/i.test(s), []);
-
-  function fillNormal() {
-    setAuthor("happy_user");
-    setText(XSS_NORMAL_TEXT);
-  }
-
-  function fillExploit() {
-    setAuthor("attacker");
-    setText(XSS_EXPLOIT_TEXT);
-  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -412,6 +518,41 @@ function CommentsPreview({
     }
   }
 
+  useEffect(() => {
+    if (autoTestNonce <= 0) return;
+    queueMicrotask(() => {
+      setAuthor("attacker");
+      setText(XSS_EXPLOIT_TEXT);
+      setLoading(true);
+      void fetch(previewUrl(problemId, "comments"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ author: "attacker", text: XSS_EXPLOIT_TEXT }),
+      })
+        .then((res) => {
+          if (res.status === 502) {
+            throw new Error(CONTAINER_DOWN_MESSAGE);
+          }
+          if (!res.ok) {
+            throw new Error(`投稿失敗 (HTTP ${res.status})`);
+          }
+          setResult({
+            tone: "safe",
+            message: "攻撃文字列はHTMLエスケープされた状態で表示されます",
+          });
+          setIframeKey((k) => k + 1);
+        })
+        .catch((err) => {
+          setResult({
+            tone: "neutral",
+            message: CONTAINER_DOWN_MESSAGE,
+            detail: err instanceof Error ? err.message : undefined,
+          });
+        })
+        .finally(() => setLoading(false));
+    });
+  }, [autoTestNonce, problemId]);
+
   return (
     <div className="rounded border border-zinc-700 bg-zinc-100 p-4 text-zinc-950">
       <div className="mb-4 flex items-center gap-3">
@@ -422,23 +563,6 @@ function CommentsPreview({
           <p className="text-sm font-bold">Comment Board</p>
           <p className="text-xs text-zinc-500">mvp build / review needed</p>
         </div>
-      </div>
-
-      <div className="mb-3 grid gap-2 sm:grid-cols-2">
-        <button
-          type="button"
-          onClick={fillNormal}
-          className="rounded border border-zinc-300 bg-white px-3 py-2 text-xs font-bold text-zinc-700 transition hover:border-zinc-500 hover:bg-zinc-50"
-        >
-          通常コメントを試す
-        </button>
-        <button
-          type="button"
-          onClick={fillExploit}
-          className="rounded border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 transition hover:bg-rose-100"
-        >
-          XSSスクリプトを試す
-        </button>
       </div>
 
       <form onSubmit={handleSubmit} className="grid gap-3">
@@ -469,6 +593,10 @@ function CommentsPreview({
         >
           {loading ? "投稿中..." : "投稿する"}
         </button>
+        <InlineHintSection hints={XSS_HINTS} />
+        <p className="mt-3 text-xs leading-5 text-zinc-500">
+          {MANUAL_INPUT_INSTRUCTION}
+        </p>
       </form>
 
       {result ? (
@@ -602,14 +730,27 @@ function PingPreview() {
   );
 }
 
+const IDOR_HINTS: InlineHint[] = [
+  {
+    label: "通常",
+    text: "自分のID（user-1）でプロフィールを取得",
+  },
+  {
+    label: "攻撃",
+    text: "他のユーザーID（user-2）を入力してアクセス",
+  },
+];
+
 function ProfilePreview({
   problemId,
   onExploitDetected,
+  autoTestNonce = 0,
 }: {
   problemId: string;
   onExploitDetected?: () => void;
+  autoTestNonce?: number;
 }) {
-  const [targetId, setTargetId] = useState("user-1");
+  const [targetId, setTargetId] = useState("");
   const [loading, setLoading] = useState(false);
   const [exploited, setExploited] = useState(false);
   const [result, setResult] = useState<{
@@ -623,20 +764,12 @@ function ProfilePreview({
   // the server doesn't check this against the URL :id.
   const ACTING_USER = "user-1";
 
-  function fillSelf() {
-    setTargetId("user-1");
-  }
-
-  function fillOther() {
-    setTargetId("user-2");
-  }
-
-  async function handleFetch() {
+  async function performFetch(probeId: string) {
     setLoading(true);
     setResult(null);
 
     try {
-      const res = await fetch(previewUrl(problemId, "profile", targetId), {
+      const res = await fetch(previewUrl(problemId, "profile", probeId), {
         method: "GET",
         headers: { "X-User-Id": ACTING_USER },
       });
@@ -645,7 +778,7 @@ function ProfilePreview({
 
       if (res.status === 502) {
         setResult({ tone: "neutral", message: CONTAINER_DOWN_MESSAGE });
-        return;
+        return { detected: false };
       }
 
       let body: unknown = text;
@@ -665,14 +798,14 @@ function ProfilePreview({
           message: "アクセスが拒否されました (403 Forbidden)",
           body: prettyBody,
         });
-        return;
+        return { detected: false };
       }
 
       const hasSecret =
         typeof body === "object" &&
         body !== null &&
         "secret" in (body as Record<string, unknown>);
-      const isOtherUser = targetId !== ACTING_USER;
+      const isOtherUser = probeId !== ACTING_USER;
 
       if (res.ok && hasSecret && isOtherUser) {
         setResult({
@@ -681,13 +814,7 @@ function ProfilePreview({
           body: prettyBody,
         });
         setExploited(true);
-
-        if (!triggeredRef.current) {
-          triggeredRef.current = true;
-          onExploitDetected?.();
-        }
-
-        return;
+        return { detected: true };
       }
 
       setResult({
@@ -697,20 +824,42 @@ function ProfilePreview({
           : `応答 HTTP ${res.status}`,
         body: prettyBody,
       });
+      return { detected: false };
     } catch (err) {
       setResult({
         tone: "neutral",
         message: CONTAINER_DOWN_MESSAGE,
         body: err instanceof Error ? err.message : undefined,
       });
+      return { detected: false };
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleFetch() {
+    const out = await performFetch(targetId);
+    if (out.detected && !triggeredRef.current) {
+      triggeredRef.current = true;
+      onExploitDetected?.();
     }
   }
 
   useEffect(() => {
     triggeredRef.current = false;
   }, [targetId]);
+
+  // After a successful verify, replay the cross-user fetch so the user
+  // sees the 403 returned by their fix. Deferred to keep setState out of
+  // the effect body (React 19 lint rule).
+  useEffect(() => {
+    if (autoTestNonce <= 0) return;
+    queueMicrotask(() => {
+      setTargetId("user-2");
+      void performFetch("user-2");
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoTestNonce]);
 
   return (
     <div className="rounded border border-zinc-700 bg-zinc-100 p-4 text-zinc-950">
@@ -731,24 +880,7 @@ function ProfilePreview({
         </span>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2">
-        <button
-          type="button"
-          onClick={fillSelf}
-          className="rounded border border-zinc-300 bg-white px-3 py-2 text-xs font-bold text-zinc-700 transition hover:border-zinc-500 hover:bg-zinc-50"
-        >
-          自分の ID で試す (user-1)
-        </button>
-        <button
-          type="button"
-          onClick={fillOther}
-          className="rounded border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 transition hover:bg-rose-100"
-        >
-          他人の ID で試す (user-2)
-        </button>
-      </div>
-
-      <label className="mt-4 block text-xs font-bold uppercase tracking-[0.16em] text-zinc-600">
+      <label className="block text-xs font-bold uppercase tracking-[0.16em] text-zinc-600">
         Target user ID <span className="text-rose-700">← URL の :id</span>
         <input
           className="mt-2 h-10 w-full rounded border border-zinc-300 bg-white px-3 font-mono text-sm text-zinc-800"
@@ -767,6 +899,7 @@ function ProfilePreview({
       >
         {loading ? "取得中..." : "プロフィール取得"}
       </button>
+      <InlineHintSection hints={IDOR_HINTS} />
 
       {result ? (
         <>
@@ -786,11 +919,10 @@ function ProfilePreview({
             </p>
           ) : null}
         </>
-      ) : (
-        <p className="mt-3 text-xs leading-5 text-zinc-500">
-          ID を変更して「プロフィール取得」を押すと、本人確認のない応答が確認できます。
-        </p>
-      )}
+      ) : null}
+      <p className="mt-3 text-xs leading-5 text-zinc-500">
+        {MANUAL_INPUT_INSTRUCTION}
+      </p>
     </div>
   );
 }
