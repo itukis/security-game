@@ -282,6 +282,7 @@ export const problemContent: Record<ProblemId, ProblemContent> = {
     defenseFailureFlavor:
       "まだ入力値がSQL構文として扱われる可能性が残っています。",
     previewKind: "login",
+    liveViewMode: "interactive",
     stepCopy: {
       step1Description:
         "まずは疑似攻撃を実行し、SQLインジェクションでログイン認証が突破されることを確認しましょう。",
@@ -377,6 +378,7 @@ export const problemContent: Record<ProblemId, ProblemContent> = {
     defenseFailureFlavor:
       "まだコメント中のタグや属性がブラウザに「コード」として解釈される可能性があります。",
     previewKind: "comments",
+    liveViewMode: "iframe",
     stepCopy: {
       step1Description:
         "コメント投稿フォームに <script> を仕込んだ疑似攻撃を実行し、HTML にそのまま埋め込まれることを確認しましょう。",
@@ -472,6 +474,7 @@ export const problemContent: Record<ProblemId, ProblemContent> = {
     defenseFailureFlavor:
       "まだ他人の ID を URL に入れただけでプロフィールが取れる状態です。",
     previewKind: "profile",
+    liveViewMode: "interactive",
     stepCopy: {
       step1Description:
         "user-1 として認証済みのまま、URL の :id を user-2 に書き換えて他人のプロフィールが返ることを確認しましょう。",

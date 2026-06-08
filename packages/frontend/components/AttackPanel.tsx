@@ -22,7 +22,7 @@ export function AttackPanel({
   return (
     <div className="rounded-lg border border-zinc-700 bg-black p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-lg font-bold text-white">攻撃結果</h3>
+        <h3 className="text-lg font-bold text-white">自動攻撃で検証</h3>
         <StatusBadge
           label={
             isRunning
@@ -72,7 +72,7 @@ export function AttackPanel({
           </>
         ) : (
           <>
-            <p className="text-zinc-500">$ simulated-attack-test</p>
+            <p className="text-zinc-500">$ automated-attack</p>
             <p className="mt-3 text-zinc-300">
               使用ペイロード:{" "}
               <span className="rounded bg-rose-400/10 px-2 py-1 text-rose-200">
@@ -80,7 +80,8 @@ export function AttackPanel({
               </span>
             </p>
             <p className="mt-3 text-zinc-500">
-              攻撃テストを実行すると、ここに結果が表示されます。
+              ボタンを押すと、左のプレビューを手動で操作しなくても
+              脆弱性の有無を即座に判定します。
             </p>
           </>
         )}
@@ -93,10 +94,10 @@ export function AttackPanel({
         className={buttonClass}
       >
         {isRunning
-          ? "攻撃テストを実行中"
+          ? "自動攻撃を実行中"
           : hasSucceeded
-            ? "攻撃テストを再実行"
-            : "攻撃テストを実行"}
+            ? "自動攻撃を再実行"
+            : "自動攻撃で検証"}
       </button>
 
       <p className="mt-4 text-sm leading-6 text-zinc-400">{disclaimer}</p>

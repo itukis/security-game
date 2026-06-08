@@ -14,9 +14,11 @@ type ResultPanelProps = {
   defenseState: DefenseState;
   disabledReason: string | null;
   errorMessage: string | null;
+  isEditorMode: boolean;
   loadingStep: string | null;
   selectedPatchTitle?: string;
   verifyResult: VerifyResult | null;
+  onBackToEditor: () => void;
   onReset: () => void;
   onRetest: () => void;
   onTryAnotherPatch: () => void;
@@ -30,9 +32,11 @@ export function ResultPanel({
   defenseState,
   disabledReason,
   errorMessage,
+  isEditorMode,
   loadingStep,
   selectedPatchTitle,
   verifyResult,
+  onBackToEditor,
   onReset,
   onRetest,
   onTryAnotherPatch,
@@ -44,6 +48,9 @@ export function ResultPanel({
     defenseState === "success" ||
     defenseState === "failure" ||
     defenseState === "error";
+  const showBackToEditor =
+    defenseState === "failure" || defenseState === "error";
+  const backToEditorLabel = isEditorMode ? "戻って修正する" : "修正案を選び直す";
 
   const before = verifyResult?.attackBefore ?? null;
   const after = verifyResult?.attackAfter ?? null;
@@ -136,36 +143,57 @@ export function ResultPanel({
       ) : null}
 
       {isFinalResult ? (
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <button
-            type="button"
-            onClick={onTryAnotherPatch}
-            className="inline-flex h-11 items-center justify-center rounded border border-cyan-300/60 bg-cyan-300 px-4 text-sm font-black text-zinc-950 transition hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-100 focus:ring-offset-2 focus:ring-offset-zinc-950"
-          >
-            別の修正案を試す
-          </button>
-          <button
-            type="button"
-            onClick={onReset}
-            className="inline-flex h-11 items-center justify-center rounded border border-zinc-700 bg-zinc-950 px-4 text-sm font-bold text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100"
-          >
-            ミッションをリセット
-          </button>
-          <Link
-            href="/challenges"
-            className="inline-flex h-11 items-center justify-center rounded border border-zinc-700 bg-zinc-950 px-4 text-sm font-bold text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100"
-          >
-            一覧に戻る
-          </Link>
+        <div className="mt-5 grid gap-3">
+          {showBackToEditor ? (
+            <button
+              type="button"
+              onClick={onBackToEditor}
+              className="inline-flex h-11 items-center justify-center rounded border border-amber-300/60 bg-amber-300 px-4 text-sm font-black text-zinc-950 shadow-lg shadow-amber-950/30 transition hover:bg-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:ring-offset-2 focus:ring-offset-zinc-950"
+            >
+              {backToEditorLabel}
+            </button>
+          ) : null}
+          <div className="grid gap-3 sm:grid-cols-3">
+            {!showBackToEditor ? (
+              <button
+                type="button"
+                onClick={onTryAnotherPatch}
+                className="inline-flex h-11 items-center justify-center rounded border border-cyan-300/60 bg-cyan-300 px-4 text-sm font-black text-zinc-950 transition hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-100 focus:ring-offset-2 focus:ring-offset-zinc-950"
+              >
+                別の修正案を試す
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={onReset}
+              className="inline-flex h-11 items-center justify-center rounded border border-zinc-700 bg-zinc-950 px-4 text-sm font-bold text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100"
+            >
+              ミッションをリセット
+            </button>
+            <Link
+              href="/challenges"
+              className="inline-flex h-11 items-center justify-center rounded border border-zinc-700 bg-zinc-950 px-4 text-sm font-bold text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100"
+            >
+              一覧に戻る
+            </Link>
+          </div>
         </div>
+      ) : isChecking ? (
+        <button
+          type="button"
+          disabled
+          className="mt-5 inline-flex h-11 w-full items-center justify-center rounded border border-zinc-700 bg-zinc-800 px-4 text-sm font-bold text-zinc-500 disabled:cursor-not-allowed"
+        >
+          検証中
+        </button>
       ) : (
         <button
           type="button"
           onClick={onRetest}
-          disabled={!canRetest || isChecking}
+          disabled={!canRetest}
           className="mt-5 inline-flex h-11 w-full items-center justify-center rounded border border-cyan-300/60 bg-cyan-300 px-4 text-sm font-black text-zinc-950 shadow-lg shadow-cyan-950/40 transition hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-100 focus:ring-offset-2 focus:ring-offset-zinc-950 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:shadow-none"
         >
-          {isChecking ? "検証中" : "修正後に再テストする"}
+          修正後に再テストする
         </button>
       )}
 

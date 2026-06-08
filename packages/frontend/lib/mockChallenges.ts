@@ -28,6 +28,7 @@ function buildMockChallenge(id: keyof typeof problemContent): Challenge {
     defenseSuccessFlavor: content.defenseSuccessFlavor,
     defenseFailureFlavor: content.defenseFailureFlavor,
     previewKind: content.previewKind,
+    liveViewMode: content.liveViewMode,
     stepCopy: content.stepCopy,
     progress: content.progress,
   };
