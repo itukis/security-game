@@ -253,17 +253,6 @@ const SQLI_NORMAL_PASSWORD = "password123";
 // `AND password = '...'` clause, so any value passes auth.
 const SQLI_EXPLOIT_USERNAME = "' OR '1'='1' --";
 const SQLI_EXPLOIT_PASSWORD = "anything";
-const SQLI_HINTS: InlineHint[] = [
-  {
-    label: "通常ログイン",
-    text: `${SQLI_NORMAL_USERNAME} / ${SQLI_NORMAL_PASSWORD}`,
-  },
-  {
-    label: "攻撃",
-    text: "USERNAME欄に ' OR '1'='1' -- を入力（パスワードは何でもOK）",
-  },
-];
-
 function LoginPreview({
   problemId,
   onExploitDetected,
@@ -400,7 +389,6 @@ function LoginPreview({
       >
         {loading ? "送信中..." : "Sign in"}
       </button>
-      <InlineHintSection hints={SQLI_HINTS} />
 
       {result ? (
         <>
@@ -425,9 +413,6 @@ function LoginPreview({
           ) : null}
         </>
       ) : null}
-      <p className="mt-3 text-xs leading-5 text-zinc-500">
-        {MANUAL_INPUT_INSTRUCTION}
-      </p>
     </form>
   );
 }

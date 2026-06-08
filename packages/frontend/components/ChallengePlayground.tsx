@@ -785,10 +785,8 @@ function HintsPanel({
 }
 
 function HintItem({ index, text }: { index: number; text: string }) {
-  // Local open/closed state per hint. Defaults to open on first render so
-  // the user sees the newly revealed hint immediately. The revealed-count
-  // lives in the parent (drives score); collapsing here is purely visual.
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
+  const bodyId = `hint-body-${index}`;
 
   return (
     <li>
@@ -796,25 +794,21 @@ function HintItem({ index, text }: { index: number; text: string }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex w-full items-start gap-2 rounded border border-amber-300/20 bg-black/20 px-2 py-2 text-left text-sm leading-6 text-zinc-200 transition hover:border-amber-300/40 hover:bg-amber-300/10"
+        aria-controls={bodyId}
+        className="flex w-full items-center gap-2 rounded border border-amber-300/20 bg-black/20 px-2 py-2 text-left text-sm leading-6 text-zinc-200 transition hover:border-amber-300/40 hover:bg-amber-300/10"
       >
         <span
           aria-hidden
-          className="mt-0.5 text-xs font-bold text-amber-200"
+          className={`text-xs font-bold text-amber-200 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         >
-          {open ? "▼" : "▶"}
+          ▼
         </span>
         <span className="text-xs font-bold uppercase tracking-[0.16em] text-amber-200">
           ヒント {index + 1}
         </span>
-        {!open ? (
-          <span className="ml-auto text-[10px] font-bold text-amber-200/70">
-            (クリックで開く)
-          </span>
-        ) : null}
       </button>
       {open ? (
-        <p className="mt-2 px-1 text-sm leading-6 text-zinc-200">{text}</p>
+        <p id={bodyId} className="mt-2 px-1 text-sm leading-6 text-zinc-200">{text}</p>
       ) : null}
     </li>
   );
