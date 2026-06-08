@@ -54,6 +54,15 @@ async function verify({ problemId, patchPath }) {
   const result = { attackBefore, attackAfter, passed };
   console.log(JSON.stringify(result, null, 2));
 
+  // Reset container to baseline (vulnerable) after verify so that
+  // manual exploit attempts in Step 1 work on the next iteration.
+  // Fire-and-forget: the rebuild takes ~10s; the user won't navigate
+  // back to Step 1 before then. Failures are logged but don't fail
+  // the verify response — baseline reset is best-effort cleanup.
+  runCompose(['up', problem.composeService, '--build', '-d', '--force-recreate']).catch((err) => {
+    console.error(`Post-verify baseline reset failed for ${problemId}: ${err.message}`);
+  });
+
   return result;
 }
 

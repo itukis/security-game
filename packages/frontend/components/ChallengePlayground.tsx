@@ -20,7 +20,7 @@ import {
 } from "@/lib/difficultyConfig";
 import { makePatch } from "@/lib/makePatch";
 import { useToast } from "@/components/Toast";
-import { computeScore, SCORE_CONFIG } from "@/lib/scoreConfig";
+import { SCORE_CONFIG } from "@/lib/scoreConfig";
 
 type AttackState = "idle" | "running" | "success" | "failure";
 type DefenseState = "idle" | "checking" | "success" | "failure" | "error";
@@ -50,9 +50,14 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const [loadingStep, setLoadingStep] = useState<string | null>(null);
   const [score, setScore] = useState(0);
+  const [, setCompletedAt] = useState<number | null>(null);
   const [previewReloadKey, setPreviewReloadKey] = useState(0);
   const [previewReloading, setPreviewReloading] = useState(false);
   const [hintsRevealed, setHintsRevealed] = useState(0);
+  // Step 1 no longer auto-advances to Step 2 when the attack succeeds —
+  // the user must explicitly click "次へ" so they can keep poking at the
+  // live preview after the first successful exploit.
+  const [step1Confirmed, setStep1Confirmed] = useState(false);
 
   const selectedPatch = challenge.patchOptions.find(
     (patch) => patch.id === selectedPatchId,
@@ -69,7 +74,7 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
     defenseState,
     hasSelectedPatch,
   });
-  const currentStep = getCurrentStep(uiStatus);
+  const currentStep = getCurrentStep(uiStatus, step1Confirmed);
   const completedSteps = getCompletedSteps({
     attackState,
     codeReviewed,
@@ -84,13 +89,13 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
   }, [challenge.hints, difficulty.hints, hintsRevealed]);
 
   const retestDisabledReason = !hasAttacked
-    ? "攻撃テストを実行すると、再テストに進めます。"
+    ? "攻撃テストを実行すると、検証に進めます。"
     : !codeReviewed
-      ? "原因コードを確認すると、修正案を選べます。"
+      ? "原因コードを確認すると、修正に進めます。"
       : !hasSelectedPatch
         ? isEditorMode
-          ? "コードを編集すると再テストできます。"
-          : "修正案を選択すると再テストできます。"
+          ? "コードを編集すると検証できます。"
+          : "修正案を選択すると検証できます。"
         : null;
 
   function handleModeChange(next: DifficultyMode) {
@@ -102,6 +107,8 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
   }
 
   function handleRunAttack() {
+    // Marks the attack as observed (manual preview OR automated button)
+    // without bumping the step counter. Score lift is idempotent.
     setAttackState("success");
     setCodeReviewed(false);
     setSelectedPatchId(null);
@@ -109,7 +116,12 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
     setVerifyResult(null);
     setVerifyError(null);
     setLoadingStep(null);
-    setScore(Math.min(difficulty.scoreCap, 25));
+    setScore((prev) => Math.max(prev, Math.min(difficulty.scoreCap, 25)));
+  }
+
+  function handleProceedToStep2() {
+    if (attackState !== "success") return;
+    setStep1Confirmed(true);
   }
 
   function handleConfirmCodeReviewed() {
@@ -147,12 +159,19 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
     setScore(hasAttacked ? Math.min(difficulty.scoreCap, 25) : 0);
   }
 
-  function handleRevealHint() {
-    setHintsRevealed((n) => n + 1);
+  function handleBackToEditor() {
+    // Clears the result/checking state so currentStep drops back to 3 with
+    // the user's last editorCode (or selectedPatchId) intact. Score is not
+    // reset — only verifyResult/error and defenseState are.
+    setDefenseState("idle");
+    setVerifyResult(null);
+    setVerifyError(null);
+    setLoadingStep(null);
   }
 
   function handleResetMission() {
     setAttackState("idle");
+    setStep1Confirmed(false);
     setCodeReviewed(false);
     setSelectedPatchId(null);
     setDefenseState("idle");
@@ -160,6 +179,7 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
     setVerifyError(null);
     setLoadingStep(null);
     setScore(0);
+    setCompletedAt(null);
   }
 
   function handleRevealHint() {
@@ -167,7 +187,11 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
   }
 
   async function handleSubmitPatch() {
-    if (!selectedPatch) {
+    const patchString = isEditorMode
+      ? makePatch(PATCH_FILE_PATH, editorCode)
+      : selectedPatch?.patch;
+
+    if (!patchString) {
       return;
     }
 
@@ -222,7 +246,13 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
     }
   }
 
-  const showLiveIframe = isEditorMode && difficulty.showSite;
+  // Render the live preview only in editor modes where the difficulty
+  // allows it. Inside that gate, route by problem: HTML-bearing problems
+  // (xss-comments) get the iframe; JSON-only endpoints (sqli-login,
+  // idor-profile) get the interactive VulnerableAppPreview, since an
+  // iframe pointing at /health or a JSON response is useless.
+  const showLivePreview = isEditorMode && difficulty.showSite;
+  const liveViewMode = challenge.liveViewMode ?? "iframe";
   const selectedPatchTitle = isEditorMode
     ? hasEditedCode
       ? "ユーザー編集コード"
@@ -333,21 +363,31 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
 
           <div className="mt-4">
             {currentStep === 1 ? (
-              <div className="grid gap-4 lg:grid-cols-[0.92fr_1.08fr]">
-                <VulnerableAppPreview challenge={challenge} />
-                <AttackPanel
-                  attackPayload={challenge.attackPayload}
-                  attackState={attackState}
-                  attackVerifiedMessage={
-                    challenge.attackVerifiedMessage ??
-                    "脆弱性が刺さる動きを確認しました"
-                  }
-                  disclaimer={
-                    challenge.attackVerifyDisclaimer ??
-                    "実際の脆弱アプリケーションに対して攻撃を実行し、防御を検証します。"
-                  }
-                  onRunAttack={handleRunAttack}
-                />
+              <div className="grid gap-4">
+                <div className="grid gap-4 lg:grid-cols-[0.92fr_1.08fr]">
+                  <VulnerableAppPreview
+                    challenge={challenge}
+                    onExploitDetected={handleRunAttack}
+                  />
+                  <AttackPanel
+                    attackPayload={challenge.attackPayload}
+                    attackState={attackState}
+                    attackVerifiedMessage={
+                      challenge.attackVerifiedMessage ??
+                      "脆弱性が刺さる動きを確認しました"
+                    }
+                    disclaimer={
+                      challenge.attackVerifyDisclaimer ??
+                      "実際の脆弱アプリケーションに対して攻撃を実行し、防御を検証します。"
+                    }
+                    onRunAttack={handleRunAttack}
+                  />
+                </div>
+                {attackState === "success" ? (
+                  <ProceedToStep2
+                    onProceed={handleProceedToStep2}
+                  />
+                ) : null}
               </div>
             ) : null}
 
@@ -383,50 +423,67 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
             ) : null}
 
             {currentStep === 3 ? (
-              isEditorMode ? (
-                <div
-                  className={
-                    showLiveIframe
-                      ? "grid gap-4 xl:grid-cols-2"
-                      : "grid gap-4"
-                  }
-                >
-                  <CodeEditor
-                    value={editorCode}
-                    language="javascript"
-                    onChange={handleEditorChange}
-                    onReset={() => handleEditorChange(challenge.initialCode)}
-                  />
-                  {showLiveIframe ? (
-                    <LiveAppIframe
-                      problemId={challenge.id}
-                      reloadKey={previewReloadKey}
-                      reloading={previewReloading}
+              <div className="grid gap-4">
+                {isEditorMode ? (
+                  <div
+                    className={
+                      showLivePreview
+                        ? "grid gap-4 xl:grid-cols-2"
+                        : "grid gap-4"
+                    }
+                  >
+                    <CodeEditor
+                      value={editorCode}
+                      language="javascript"
+                      onChange={handleEditorChange}
+                      onReset={() => handleEditorChange(challenge.initialCode)}
                     />
-                  ) : null}
-                </div>
-              ) : (
-                <PatchSelector
-                  disabled={!canSelectPatch}
-                  disabledReason={
-                    canSelectPatch ? null : "まず攻撃テストを実行してください。"
-                  }
-                  patchOptions={challenge.patchOptions}
-                  selectedPatchId={selectedPatchId}
-                  onSelectPatch={handleSelectPatch}
+                    {showLivePreview ? (
+                      liveViewMode === "iframe" ? (
+                        <LiveAppIframe
+                          problemId={challenge.id}
+                          reloadKey={previewReloadKey}
+                          reloading={previewReloading}
+                        />
+                      ) : (
+                        <VulnerableAppPreview challenge={challenge} />
+                      )
+                    ) : null}
+                  </div>
+                ) : (
+                  <PatchSelector
+                    disabled={!canSelectPatch}
+                    disabledReason={
+                      canSelectPatch ? null : "まず攻撃テストを実行してください。"
+                    }
+                    patchOptions={challenge.patchOptions}
+                    selectedPatchId={selectedPatchId}
+                    onSelectPatch={handleSelectPatch}
+                  />
+                )}
+
+                <VerifyTrigger
+                  canRetest={canRetest}
+                  disabledReason={retestDisabledReason}
+                  isEditorMode={isEditorMode}
+                  onSubmit={handleSubmitPatch}
                 />
-              )
+              </div>
             ) : null}
 
             {currentStep === 4 ? (
               <>
-                {showLiveIframe ? (
+                {showLivePreview ? (
                   <div className="mb-4">
-                    <LiveAppIframe
-                      problemId={challenge.id}
-                      reloadKey={previewReloadKey}
-                      reloading={previewReloading}
-                    />
+                    {liveViewMode === "iframe" ? (
+                      <LiveAppIframe
+                        problemId={challenge.id}
+                        reloadKey={previewReloadKey}
+                        reloading={previewReloading}
+                      />
+                    ) : (
+                      <VulnerableAppPreview challenge={challenge} />
+                    )}
                   </div>
                 ) : null}
                 <ResultPanel
@@ -435,7 +492,9 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
                   defenseState={defenseState}
                   disabledReason={retestDisabledReason}
                   errorMessage={verifyError}
+                  isEditorMode={isEditorMode}
                   loadingStep={loadingStep}
+                  onBackToEditor={handleBackToEditor}
                   onReset={handleResetMission}
                   onRetest={handleSubmitPatch}
                   onTryAnotherPatch={handleTryAnotherPatch}
@@ -561,12 +620,92 @@ function HintsPanel({
           </button>
         ) : null}
       </div>
-      <ul className="mt-3 grid gap-2 text-sm leading-6 text-zinc-200">
+      <ul className="mt-3 grid gap-2">
         {hints.map((hint, i) => (
-          <li key={`${i}:${hint.slice(0, 12)}`}>- {hint}</li>
+          <HintItem
+            key={`${i}:${hint.slice(0, 12)}`}
+            index={i}
+            text={hint}
+          />
         ))}
       </ul>
     </aside>
+  );
+}
+
+function HintItem({ index, text }: { index: number; text: string }) {
+  // Local open/closed state per hint. Defaults to open on first render so
+  // the user sees the newly revealed hint immediately. The revealed-count
+  // lives in the parent (drives score); collapsing here is purely visual.
+  const [open, setOpen] = useState(true);
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-start gap-2 rounded border border-amber-300/20 bg-black/20 px-2 py-2 text-left text-sm leading-6 text-zinc-200 transition hover:border-amber-300/40 hover:bg-amber-300/10"
+      >
+        <span
+          aria-hidden
+          className="mt-0.5 text-xs font-bold text-amber-200"
+        >
+          {open ? "▼" : "▶"}
+        </span>
+        <span className="text-xs font-bold uppercase tracking-[0.16em] text-amber-200">
+          ヒント {index + 1}
+        </span>
+        {!open ? (
+          <span className="ml-auto text-[10px] font-bold text-amber-200/70">
+            (クリックで開く)
+          </span>
+        ) : null}
+      </button>
+      {open ? (
+        <p className="mt-2 px-1 text-sm leading-6 text-zinc-200">{text}</p>
+      ) : null}
+    </li>
+  );
+}
+
+function VerifyTrigger({
+  canRetest,
+  disabledReason,
+  isEditorMode,
+  onSubmit,
+}: {
+  canRetest: boolean;
+  disabledReason: string | null;
+  isEditorMode: boolean;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="rounded-lg border border-cyan-300/20 bg-zinc-950 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
+            Verify
+          </p>
+          <p className="mt-1 text-sm text-zinc-300">
+            {isEditorMode
+              ? "コードを修正したら、ここから実際の攻撃テストで検証します。"
+              : "修正案を選んだら、ここから実際の攻撃テストで検証します。"}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={!canRetest}
+          className="inline-flex h-11 items-center justify-center rounded border border-cyan-300/60 bg-cyan-300 px-5 text-sm font-black text-zinc-950 shadow-lg shadow-cyan-950/40 transition hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-100 focus:ring-offset-2 focus:ring-offset-zinc-950 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:shadow-none"
+        >
+          {isEditorMode ? "修正を検証する" : "修正案を検証する"}
+        </button>
+      </div>
+      {disabledReason ? (
+        <p className="mt-3 text-xs leading-5 text-zinc-400">{disabledReason}</p>
+      ) : null}
+    </div>
   );
 }
 
@@ -767,20 +906,47 @@ function getQuestUiStatus({
   return "idle";
 }
 
-function getCurrentStep(status: QuestUiStatus) {
+function getCurrentStep(status: QuestUiStatus, step1Confirmed: boolean) {
   if (status === "idle") {
     return 1;
   }
 
   if (status === "attacked") {
-    return 2;
+    // After the user exploits the bug we keep them on Step 1 until they
+    // explicitly click "次へ", so they can keep poking at the live preview.
+    return step1Confirmed ? 2 : 1;
   }
 
-  if (status === "codeReviewed") {
+  if (status === "codeReviewed" || status === "patchSelected") {
+    // patchSelected = "the user has a fix ready but hasn't clicked verify".
+    // The verify trigger lives on step 3 now, so stay there until the
+    // verify call actually starts.
     return 3;
   }
 
   return 4;
+}
+
+function ProceedToStep2({ onProceed }: { onProceed: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-300/30 bg-emerald-300/10 p-4">
+      <div>
+        <p className="text-sm font-black text-emerald-100">
+          ✓ 脆弱性を確認できました
+        </p>
+        <p className="mt-1 text-xs leading-5 text-emerald-50/80">
+          満足するまでプレビューで攻撃を試せます。準備ができたら次のステップへ。
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onProceed}
+        className="inline-flex h-11 items-center justify-center rounded border border-cyan-300/60 bg-cyan-300 px-5 text-sm font-black text-zinc-950 shadow-lg shadow-cyan-950/40 transition hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-100 focus:ring-offset-2 focus:ring-offset-zinc-950"
+      >
+        次へ：脆弱なコードを確認する →
+      </button>
+    </div>
+  );
 }
 
 function getCompletedSteps({

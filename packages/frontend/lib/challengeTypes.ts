@@ -49,6 +49,13 @@ export type VerifyResult = {
 // matching <VulnerableAppPreview> rendering.
 export type PreviewKind = "login" | "comments" | "profile" | "download" | "ping";
 
+// How to render the "live app" panel next to the editor in editPreview
+// mode. Problems with a real HTML route (xss-comments → GET /comments)
+// can use an <iframe>; the others only have JSON endpoints where an
+// iframe would just show raw JSON, so we use the interactive
+// VulnerableAppPreview form instead.
+export type LiveViewMode = "iframe" | "interactive";
+
 // Per-step UI copy. All vulnerability-specific text the UI used to
 // hard-code now lives on the Challenge through these fields.
 export type StepCopy = {
@@ -79,6 +86,7 @@ export type ProblemPresentation = {
   defenseSuccessFlavor?: string;
   defenseFailureFlavor?: string;
   previewKind?: PreviewKind;
+  liveViewMode?: LiveViewMode;
   stepCopy?: StepCopy;
   progress?: ProgressCopy;
   explanation: string;
