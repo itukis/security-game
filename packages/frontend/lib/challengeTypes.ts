@@ -14,7 +14,18 @@ export type PatchOption = {
   isCorrect: boolean;
 };
 
-export type VerifyValue = string | boolean | number | Record<string, unknown> | null;
+// Shape returned by the real orchestrator for attackBefore / attackAfter
+// when USE_MOCK=false. The mock path still returns plain strings, so we
+// keep the wider `VerifyValue` union for backwards compatibility.
+export type AttackOutcome = {
+  vulnerability?: string;
+  exploited?: boolean;
+  payload?: string | null;
+  evidence?: string;
+  durationMs?: number;
+};
+
+export type VerifyValue = string | boolean | number | AttackOutcome | null;
 
 export type ProblemResponse = {
   id: string;

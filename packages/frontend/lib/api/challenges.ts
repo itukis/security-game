@@ -16,7 +16,9 @@ export const DEFAULT_PROBLEM_ID: ProblemId = "sqli-login";
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ??
   "http://localhost:4000";
-const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
+// Default to the real orchestrator. Set NEXT_PUBLIC_USE_MOCK=true to opt
+// back into the mockChallenges-only path (used for offline demos and tests).
+const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 async function authHeader(): Promise<Record<string, string>> {
   if (typeof window === "undefined") return {};

@@ -1,5 +1,10 @@
 import Link from "next/link";
-import type { Challenge, VerifyResult, VerifyValue } from "@/lib/challengeTypes";
+import type {
+  AttackOutcome,
+  Challenge,
+  VerifyResult,
+  VerifyValue,
+} from "@/lib/challengeTypes";
 
 type DefenseState = "idle" | "checking" | "success" | "failure" | "error";
 
@@ -15,6 +20,8 @@ type ResultPanelProps = {
   onReset: () => void;
   onRetest: () => void;
   onTryAnotherPatch: () => void;
+  onRevealHint?: () => void;
+  hintRevealLabel?: string;
 };
 
 export function ResultPanel({
@@ -29,12 +36,17 @@ export function ResultPanel({
   onReset,
   onRetest,
   onTryAnotherPatch,
+  onRevealHint,
+  hintRevealLabel,
 }: ResultPanelProps) {
   const isChecking = defenseState === "checking";
   const isFinalResult =
     defenseState === "success" ||
     defenseState === "failure" ||
     defenseState === "error";
+
+  const before = verifyResult?.attackBefore ?? null;
+  const after = verifyResult?.attackAfter ?? null;
 
   return (
     <section className="rounded-lg border border-zinc-700 bg-zinc-900/95 p-4 shadow-xl shadow-black/30 sm:p-5">
@@ -55,6 +67,7 @@ export function ResultPanel({
           passed={verifyResult.passed}
           successFlavor={challenge.defenseSuccessFlavor}
           failureFlavor={challenge.defenseFailureFlavor}
+          attackAfter={after}
         />
       ) : null}
 
@@ -85,13 +98,21 @@ export function ResultPanel({
       ) : null}
 
       {errorMessage ? (
-        <div
-          role="alert"
-          aria-live="assertive"
-          className="mt-5 rounded-lg border border-rose-300/40 bg-rose-300/10 p-4 text-sm leading-6 text-rose-100"
-        >
-          <p className="text-base font-black">通信エラー</p>
-          <p className="mt-2">{errorMessage}</p>
+        <PatchErrorAlert message={errorMessage} />
+      ) : null}
+
+      {verifyResult ? (
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          <AttackOutcomeCard
+            tone="danger"
+            label="パッチ適用前"
+            outcome={before}
+          />
+          <AttackOutcomeCard
+            tone={verifyResult.passed ? "safe" : "danger"}
+            label="パッチ適用後"
+            outcome={after}
+          />
         </div>
       ) : null}
 
@@ -102,15 +123,6 @@ export function ResultPanel({
             {selectedPatchTitle ?? "未選択"}
           </dd>
         </div>
-        <ResultRow
-          label="attackBefore"
-          value={verifyResult?.attackBefore ?? "未検証"}
-        />
-        <ResultRow
-          label="attackAfter"
-          value={verifyResult?.attackAfter ?? "未検証"}
-        />
-        <ResultRow label="passed" value={verifyResult?.passed ?? "未検証"} />
         <div>
           <dt className="text-zinc-500">Explanation</dt>
           <dd className="mt-2 leading-6 text-zinc-300">{challenge.explanation}</dd>
@@ -156,7 +168,44 @@ export function ResultPanel({
           {isChecking ? "検証中" : "修正後に再テストする"}
         </button>
       )}
+
+      {defenseState === "failure" && onRevealHint ? (
+        <button
+          type="button"
+          onClick={onRevealHint}
+          className="mt-3 inline-flex h-10 items-center justify-center rounded border border-amber-300/40 bg-amber-300/10 px-4 text-xs font-bold text-amber-100 transition hover:bg-amber-300/20"
+        >
+          {hintRevealLabel ?? "次のヒントを見る"}
+        </button>
+      ) : null}
     </section>
+  );
+}
+
+function PatchErrorAlert({ message }: { message: string }) {
+  const looksLikePatchProblem =
+    message.includes("400") ||
+    message.includes("apply") ||
+    message.includes("Patch failed validation");
+
+  return (
+    <div
+      role="alert"
+      aria-live="assertive"
+      className="mt-5 rounded-lg border border-rose-300/40 bg-rose-300/10 p-4 text-sm leading-6 text-rose-100"
+    >
+      <p className="text-base font-black">
+        {looksLikePatchProblem
+          ? "修正コードが適用できませんでした。コードの構文を確認してください。"
+          : "通信エラー"}
+      </p>
+      <details className="mt-3 rounded border border-rose-300/30 bg-black/30 p-3 text-xs font-mono text-rose-100/90">
+        <summary className="cursor-pointer font-sans text-xs font-bold uppercase tracking-[0.16em] text-rose-200">
+          詳細
+        </summary>
+        <pre className="mt-2 whitespace-pre-wrap break-words">{message}</pre>
+      </details>
+    </div>
   );
 }
 
@@ -164,10 +213,12 @@ function RetestSummary({
   passed,
   successFlavor,
   failureFlavor,
+  attackAfter,
 }: {
   passed: boolean;
   successFlavor?: string;
   failureFlavor?: string;
+  attackAfter: VerifyValue;
 }) {
   if (passed) {
     return (
@@ -181,7 +232,7 @@ function RetestSummary({
       >
         <p className="text-lg font-black text-emerald-100">✓ 防御成功</p>
         <p className="mt-2 text-sm leading-6 text-zinc-200">
-          パッチ適用後の疑似攻撃はブロックされました。
+          パッチ適用後の攻撃はブロックされました。
         </p>
         {successFlavor ? (
           <p className="mt-1 text-sm leading-6 text-zinc-300">{successFlavor}</p>
@@ -190,6 +241,8 @@ function RetestSummary({
     );
   }
 
+  const stillPayload = extractPayload(attackAfter);
+
   return (
     <div
       key="failed"
@@ -197,34 +250,121 @@ function RetestSummary({
       aria-live="polite"
       className="animate-attack-flash mt-5 rounded-lg border border-rose-300/50 bg-rose-300/10 p-4"
     >
-      <p className="text-lg font-black text-rose-100">✗ 防御失敗</p>
+      <p className="text-lg font-black text-rose-100">✗ まだ脆弱性が残っています。</p>
       <p className="mt-2 text-sm leading-6 text-zinc-200">
         まだ攻撃が成立する可能性があります。
       </p>
+      {stillPayload ? (
+        <p className="mt-2 text-xs leading-5 text-rose-100">
+          再現できたペイロード:{" "}
+          <code className="rounded bg-black/30 px-2 py-0.5 font-mono text-rose-100">
+            {stillPayload}
+          </code>
+        </p>
+      ) : null}
       {failureFlavor ? (
         <p className="mt-1 text-sm leading-6 text-zinc-300">{failureFlavor}</p>
-      ) : (
-        <p className="mt-1 text-sm leading-6 text-zinc-300">
-          別の修正案を選んで再テストしてください。
+      ) : null}
+    </div>
+  );
+}
+
+function AttackOutcomeCard({
+  tone,
+  label,
+  outcome,
+}: {
+  tone: "danger" | "safe";
+  label: string;
+  outcome: VerifyValue;
+}) {
+  const isSafe = tone === "safe";
+  const obj = toAttackOutcome(outcome);
+  const exploited = obj?.exploited;
+  const payload = obj?.payload;
+  const evidence = obj?.evidence;
+  const duration = obj?.durationMs;
+
+  const headerClass = isSafe
+    ? "border-emerald-300/40 bg-emerald-300/10 text-emerald-100"
+    : "border-rose-300/40 bg-rose-300/10 text-rose-100";
+
+  return (
+    <div
+      className={`rounded-lg border p-3 ${
+        isSafe ? "border-emerald-300/30 bg-emerald-300/5" : "border-rose-300/30 bg-rose-300/5"
+      }`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-zinc-300">
+          {label}
         </p>
+        <span
+          className={`rounded border px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] ${headerClass}`}
+        >
+          {exploited === undefined
+            ? "—"
+            : exploited
+              ? "侵入成立"
+              : "ブロック"}
+        </span>
+      </div>
+      {obj ? (
+        <dl className="mt-3 grid gap-2 text-sm">
+          {payload ? (
+            <KV label="payload" value={payload} mono />
+          ) : null}
+          {evidence ? <KV label="evidence" value={evidence} /> : null}
+          {duration !== undefined ? (
+            <KV label="durationMs" value={`${duration} ms`} />
+          ) : null}
+        </dl>
+      ) : (
+        <p className="mt-3 text-sm text-zinc-300">{formatVerifyValue(outcome)}</p>
       )}
     </div>
   );
 }
 
-function ResultRow({ label, value }: { label: string; value: VerifyValue }) {
+function KV({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-zinc-800 pb-3">
-      <dt className="text-zinc-500">{label}</dt>
-      <dd className="max-w-[65%] text-right font-semibold text-zinc-200">
-        {formatVerifyValue(value)}
+    <div className="grid gap-1">
+      <dt className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+        {label}
+      </dt>
+      <dd
+        className={`break-words text-sm leading-5 text-zinc-100 ${
+          mono ? "font-mono" : ""
+        }`}
+      >
+        {value}
       </dd>
     </div>
   );
 }
 
+function toAttackOutcome(value: VerifyValue): AttackOutcome | null {
+  if (value && typeof value === "object") {
+    return value;
+  }
+  return null;
+}
+
+function extractPayload(value: VerifyValue): string | null {
+  const obj = toAttackOutcome(value);
+  return obj?.payload ?? null;
+}
+
 function formatVerifyValue(value: VerifyValue) {
-  if (value === null) {
+  if (value === null || value === undefined) {
     return "未取得";
   }
 
