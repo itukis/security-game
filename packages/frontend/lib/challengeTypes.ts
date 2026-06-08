@@ -1,7 +1,9 @@
 export type VulnerabilityType =
   | "SQL Injection"
   | "XSS"
-  | "Authentication Bypass";
+  | "Authentication Bypass"
+  | "Path Traversal"
+  | "Command Injection";
 
 export type Difficulty = "Easy" | "Medium" | "Hard";
 export type ChallengeStatus = "available" | "locked" | "coming-soon";
@@ -45,7 +47,7 @@ export type VerifyResult = {
 
 // Which mock UI to render in the Step 1 preview pane. Each kind has a
 // matching <VulnerableAppPreview> rendering.
-export type PreviewKind = "login" | "comments" | "profile";
+export type PreviewKind = "login" | "comments" | "profile" | "download" | "ping";
 
 // Per-step UI copy. All vulnerability-specific text the UI used to
 // hard-code now lives on the Challenge through these fields.
