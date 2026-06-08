@@ -188,7 +188,7 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
 
   async function handleSubmitPatch() {
     const patchString = isEditorMode
-      ? makePatch(PATCH_FILE_PATH, editorCode)
+      ? makePatch(PATCH_FILE_PATH, challenge.initialCode, editorCode)
       : selectedPatch?.patch;
 
     if (!patchString) {
