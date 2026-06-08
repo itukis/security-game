@@ -20,6 +20,7 @@ import {
 } from "@/lib/difficultyConfig";
 import { makePatch } from "@/lib/makePatch";
 import { useToast } from "@/components/Toast";
+import { computeScore, SCORE_CONFIG } from "@/lib/scoreConfig";
 
 type AttackState = "idle" | "running" | "success" | "failure";
 type DefenseState = "idle" | "checking" | "success" | "failure" | "error";
@@ -146,6 +147,10 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
     setScore(hasAttacked ? Math.min(difficulty.scoreCap, 25) : 0);
   }
 
+  function handleRevealHint() {
+    setHintsRevealed((n) => n + 1);
+  }
+
   function handleResetMission() {
     setAttackState("idle");
     setCodeReviewed(false);
@@ -162,17 +167,8 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
   }
 
   async function handleSubmitPatch() {
-    let patchString: string | null = null;
-    if (isEditorMode) {
-      if (!hasEditedCode) return;
-      patchString = makePatch(
-        PATCH_FILE_PATH,
-        challenge.initialCode,
-        editorCode,
-      );
-    } else {
-      if (!selectedPatch) return;
-      patchString = selectedPatch.patch;
+    if (!selectedPatch) {
+      return;
     }
 
     setDefenseState("checking");
@@ -197,6 +193,7 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
       const calculated = result.passed ? 100 : 35;
       setScore(Math.min(difficulty.scoreCap, calculated));
       if (result.passed) {
+        setCompletedAt(Date.now());
         toast.success("問題をクリアしました！");
         if (difficulty.showSite) {
           setPreviewReloading(true);
@@ -377,6 +374,11 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
                     原因コードを確認した
                   </button>
                 </div>
+                <HintPanel
+                  hints={challenge.hints}
+                  hintsRevealed={hintsRevealed}
+                  onRevealHint={handleRevealHint}
+                />
               </div>
             ) : null}
 
@@ -859,6 +861,106 @@ function getResultSummary(defenseState: DefenseState) {
   }
 
   return "修正案選択後に実行";
+}
+
+function formatDuration(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const m = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
+  const s = (totalSeconds % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+function ScoreCard({
+  score,
+  hintsUsed,
+  attempts,
+  durationMs,
+}: {
+  score: number;
+  hintsUsed: number;
+  attempts: number;
+  durationMs?: number;
+}) {
+  return (
+    <div className="rounded-lg border border-zinc-700 bg-zinc-900/90 p-5">
+      <p className="text-xs font-black uppercase tracking-[0.15em] text-zinc-500">
+        スコア
+      </p>
+      <div className="mt-3 flex items-baseline gap-1">
+        <span className="text-5xl font-black tabular-nums text-white">
+          {score}
+        </span>
+        <span className="text-lg font-bold text-zinc-500">
+          / {SCORE_CONFIG.base}
+        </span>
+      </div>
+      <div className="mt-4 grid gap-1.5">
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <span className="text-zinc-400">使用ヒント数</span>
+          <span className="font-bold text-zinc-200">{hintsUsed}</span>
+        </div>
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <span className="text-zinc-400">挑戦回数</span>
+          <span className="font-bold text-zinc-200">{attempts}</span>
+        </div>
+        {SCORE_CONFIG.speedBonus.enabled && durationMs !== undefined ? (
+          <div className="flex items-center justify-between gap-2 text-sm">
+            <span className="text-zinc-400">所要時間</span>
+            <span className="font-bold text-zinc-200">
+              {formatDuration(durationMs)}
+            </span>
+          </div>
+        ) : null}
+      </div>
+      <p className="mt-4 text-xs text-zinc-600">※ 表示得点はゲーム内目安です</p>
+    </div>
+  );
+}
+
+function HintPanel({
+  hints,
+  hintsRevealed,
+  onRevealHint,
+}: {
+  hints: string[];
+  hintsRevealed: number;
+  onRevealHint: () => void;
+}) {
+  if (hints.length === 0) return null;
+
+  const allRevealed = hintsRevealed === hints.length;
+  const remaining = hints.length - hintsRevealed;
+
+  return (
+    <div className="rounded-lg border border-zinc-700 bg-zinc-900/90 p-4">
+      <p className="text-xs font-black uppercase tracking-[0.15em] text-zinc-500">
+        ヒント
+      </p>
+      {hintsRevealed > 0 ? (
+        <div className="mt-3 grid gap-2">
+          {hints.slice(0, hintsRevealed).map((hint, i) => (
+            <div
+              key={i}
+              className="rounded border border-zinc-700 bg-zinc-950 p-3"
+            >
+              <p className="mb-1 text-xs font-black uppercase tracking-[0.14em] text-zinc-500">
+                ヒント {i + 1}
+              </p>
+              <p className="text-sm leading-6 text-zinc-300">{hint}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <button
+        type="button"
+        onClick={onRevealHint}
+        disabled={allRevealed}
+        className="mt-3 inline-flex h-10 w-full items-center justify-center rounded border border-zinc-600 bg-zinc-800 px-4 text-sm font-bold text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-zinc-400 focus:ring-offset-2 focus:ring-offset-zinc-900 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-zinc-900 disabled:text-zinc-600"
+      >
+        {allRevealed ? "ヒントは全て表示済み" : `ヒントを見る (残り${remaining})`}
+      </button>
+    </div>
+  );
 }
 
 function wait(ms: number) {
