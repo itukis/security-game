@@ -186,7 +186,7 @@ export const problemContent: Record<ProblemId, ProblemContent> = {
     attackPayload: "' OR '1'='1",
     attackVerifiedMessage: "ログイン認証が突破されました",
     attackVerifyDisclaimer:
-      "実際のSQL実行は行わず、学習用の疑似判定だけを表示します。",
+      "実際の脆弱アプリケーションに対して攻撃を実行し、防御を検証します。",
     defenseSuccessFlavor:
       "ユーザー入力をSQL構文ではなく値として渡す修正が効いています。",
     defenseFailureFlavor:
@@ -281,7 +281,7 @@ export const problemContent: Record<ProblemId, ProblemContent> = {
     attackVerifiedMessage:
       "コメント中の <script> がHTMLに紛れ込み、ブラウザで実行可能な状態になりました",
     attackVerifyDisclaimer:
-      "実際に外部サイトへ送信したりはせず、学習用の疑似判定だけを表示します。",
+      "実際の脆弱アプリケーションに対して攻撃を実行し、防御を検証します。",
     defenseSuccessFlavor:
       "投稿内容がエスケープされ、タグではなくただの文字列として表示されています。",
     defenseFailureFlavor:
@@ -376,7 +376,7 @@ export const problemContent: Record<ProblemId, ProblemContent> = {
     attackVerifiedMessage:
       "user-1 として user-2 のプロフィール(secret付き)が読み出されました",
     attackVerifyDisclaimer:
-      "実際の本番DBには接続せず、ローカルのモックプロフィールに対する学習用の疑似判定だけを表示します。",
+      "実際の脆弱アプリケーションに対して攻撃を実行し、防御を検証します。",
     defenseSuccessFlavor:
       "リクエスト元と対象 ID が一致しないアクセスを 403 で弾けています。",
     defenseFailureFlavor:
