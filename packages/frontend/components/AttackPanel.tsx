@@ -20,7 +20,7 @@ export function AttackPanel({
     : "mt-5 inline-flex h-11 w-full items-center justify-center rounded border border-rose-300/60 bg-rose-500 px-4 text-sm font-black text-white shadow-lg shadow-rose-950/40 transition hover:bg-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:ring-offset-2 focus:ring-offset-zinc-950 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:shadow-none";
 
   return (
-    <div className="rounded-lg border border-zinc-700 bg-black p-4">
+    <div className="relative min-w-0 rounded-lg border border-zinc-700 bg-black p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-lg font-bold text-white">自動攻撃で検証</h3>
         <StatusBadge

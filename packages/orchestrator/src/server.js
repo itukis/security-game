@@ -180,10 +180,17 @@ app.post('/problems/:id/verify', optionalAuth, async (req, res) => {
         recording: { firstClear: recording.firstClear, score: recording.score },
         appliedPatchSummary: summarizePatch(patch),
       });
-      return;
+    } else {
+      res.json(result);
     }
 
-    res.json(result);
+    // Reset container back to baseline AFTER responding so the next Step 1
+    // attempt sees a fresh vulnerable container. Enqueued on the same queue
+    // so the next verify/preview call waits for it to finish.
+    enqueueContainerMutation(() => resetProblemContainer(id)).catch((err) => {
+      console.error(`Post-verify baseline reset failed for ${id}:`, err.message);
+    });
+    return;
   } catch (err) {
     const msg = err.message || 'Internal error';
     if (msg.includes('patch does not apply') || msg.includes('--check')) {

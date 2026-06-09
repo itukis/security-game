@@ -212,6 +212,7 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
     setStep1Confirmed(false);
     setCodeReviewed(false);
     setSelectedPatchId(null);
+    setEditorCode(challenge.initialCode);
     setDefenseState("idle");
     setVerifyResult(null);
     setVerifyError(null);
@@ -396,8 +397,8 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
         step2Subtitle={challenge.stepCopy?.stepperStep2Subtitle}
       />
 
-      <div className="grid gap-4 xl:grid-cols-[0.38fr_0.62fr]">
-        <aside className="flex flex-col gap-4 xl:sticky xl:top-20 xl:self-start">
+      <div className="relative isolate grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(240px,280px)_minmax(0,1fr)]">
+        <aside className="relative z-0 flex min-w-0 flex-col gap-3 self-start">
           <NextActionCard
             attackedBody={challenge.stepCopy?.nextActionAttacked}
             codeReviewedBody={challenge.stepCopy?.nextActionCodeReviewed}
@@ -422,7 +423,7 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
             <button
               type="button"
               onClick={handleRevealHint}
-              className="rounded-lg border border-amber-300/40 bg-amber-300/10 px-4 py-3 text-left text-sm font-bold text-amber-100 transition hover:bg-amber-300/20"
+              className="rounded border border-amber-300/40 bg-amber-300/10 px-3 py-2 text-left text-xs font-bold text-amber-100 transition hover:bg-amber-300/20"
             >
               💡 ヒントを表示する (1/{challenge.hints.length})
             </button>
@@ -438,7 +439,7 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
           />
         </aside>
 
-        <section className="rounded-lg border border-zinc-700 bg-zinc-900/90 p-4 shadow-xl shadow-black/30 sm:p-5">
+        <section className="relative z-0 min-w-0 rounded-lg border border-zinc-700 bg-zinc-900 p-4 shadow-xl shadow-black/30 sm:p-5">
           {currentStep === 1 ? (
             <ActiveStepHeader
               eyebrow="Step 1"
@@ -484,8 +485,8 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
 
           <div className="mt-4">
             {currentStep === 1 ? (
-              <div className="grid gap-4">
-                <div className="grid gap-4 lg:grid-cols-[0.92fr_1.08fr]">
+              <div className="grid min-w-0 gap-4">
+                <div className="grid min-w-0 gap-4 lg:grid-cols-[0.92fr_1.08fr]">
                   <VulnerableAppPreview
                     challenge={challenge}
                     onExploitDetected={handleRunAttack}
@@ -513,7 +514,7 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
             ) : null}
 
             {currentStep === 2 ? (
-              <div className="grid gap-4">
+              <div className="grid min-w-0 gap-4">
                 <CodeViewer
                   code={challenge.initialCode}
                   language="typescript"
@@ -544,16 +545,16 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
             ) : null}
 
             {currentStep === 3 ? (
-              <div className="grid gap-4">
+              <div className="grid min-w-0 gap-4">
                 {isEditorMode ? (
                   <div
                     className={
                       showLivePreview
-                        ? "grid gap-4 xl:grid-cols-2"
-                        : "grid gap-4"
+                        ? "grid min-w-0 gap-4 xl:grid-cols-2"
+                        : "grid min-w-0 gap-4"
                     }
                   >
-                    <div className="flex flex-col gap-2">
+                    <div className="flex min-w-0 flex-col gap-2">
                       <p className="text-xs leading-5 text-zinc-500">
                         脆弱な箇所を見つけて、該当行だけを修正してください。
                         コード全体を置き換えると正しく検証できません。
@@ -730,11 +731,11 @@ function ScoreCapBadge({
   cap: number;
 }) {
   return (
-    <div className="rounded border border-zinc-700 bg-black p-3 text-xs text-zinc-300">
-      <p className="font-bold uppercase tracking-[0.18em] text-zinc-500">
+    <div className="relative min-w-0 rounded border border-zinc-700 bg-black p-2.5 text-xs text-zinc-300">
+      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
         Score Cap
       </p>
-      <p className="mt-1 text-sm text-zinc-100">
+      <p className="mt-1 text-xs leading-5 text-zinc-100">
         {DIFFICULTY_LABELS[mode]} モードのスコア上限は{" "}
         <span className="font-black text-emerald-200">{cap}</span> 点です。
       </p>
@@ -756,22 +757,22 @@ function HintsPanel({
   canReveal: boolean;
 }) {
   return (
-    <aside className="rounded-lg border border-amber-300/30 bg-amber-300/5 p-4">
+    <aside className="relative min-w-0 rounded border border-amber-300/30 bg-zinc-950 p-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-100">
+        <p className="text-[11px] font-black uppercase tracking-[0.16em] text-amber-100">
           ヒント ({hints.length}/{total})
         </p>
         {mode === "onDemand" && onReveal && canReveal ? (
           <button
             type="button"
             onClick={onReveal}
-            className="rounded border border-amber-300/50 bg-amber-300/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-amber-100 transition hover:bg-amber-300/20"
+            className="rounded border border-amber-300/50 bg-amber-300/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-100 transition hover:bg-amber-300/20"
           >
             次を開く
           </button>
         ) : null}
       </div>
-      <ul className="mt-3 grid gap-2">
+      <ul className="mt-2 grid gap-1.5">
         {hints.map((hint, i) => (
           <HintItem
             key={`${i}:${hint.slice(0, 12)}`}
@@ -795,7 +796,7 @@ function HintItem({ index, text }: { index: number; text: string }) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={bodyId}
-        className="flex w-full items-center gap-2 rounded border border-amber-300/20 bg-black/20 px-2 py-2 text-left text-sm leading-6 text-zinc-200 transition hover:border-amber-300/40 hover:bg-amber-300/10"
+        className="flex w-full items-center gap-2 rounded border border-amber-300/20 bg-black/20 px-2 py-1.5 text-left text-xs leading-5 text-zinc-200 transition hover:border-amber-300/40 hover:bg-amber-300/10"
       >
         <span
           aria-hidden
@@ -803,12 +804,12 @@ function HintItem({ index, text }: { index: number; text: string }) {
         >
           ▼
         </span>
-        <span className="text-xs font-bold uppercase tracking-[0.16em] text-amber-200">
+        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-amber-200">
           ヒント {index + 1}
         </span>
       </button>
       {open ? (
-        <p id={bodyId} className="mt-2 px-1 text-sm leading-6 text-zinc-200">{text}</p>
+        <p id={bodyId} className="mt-1.5 px-1 text-xs leading-5 text-zinc-200">{text}</p>
       ) : null}
     </li>
   );
@@ -985,7 +986,7 @@ function StepSummaryList({
     defenseState === "error";
 
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-1.5">
       <StepSummary
         active={currentStep === 1}
         complete={hasAttacked}
@@ -1037,20 +1038,20 @@ function StepSummary({
 }) {
   return (
     <div
-      className={`rounded border p-3 ${
+      className={`rounded border p-2.5 ${
         active
           ? "border-cyan-300/50 bg-cyan-300/10"
           : complete
             ? "border-emerald-300/30 bg-emerald-300/10"
             : locked
-              ? "border-zinc-800 bg-zinc-950/50 opacity-60"
+              ? "border-zinc-800 bg-zinc-950"
               : "border-zinc-700 bg-zinc-950"
       }`}
     >
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-bold text-white">{title}</h3>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-xs font-bold text-white">{title}</h3>
         <span
-          className={`text-xs font-black ${
+          className={`text-[10px] font-black ${
             complete
               ? "text-emerald-200"
               : locked
@@ -1061,7 +1062,7 @@ function StepSummary({
           {complete ? "✓" : locked ? "LOCK" : active ? "NOW" : "NEXT"}
         </span>
       </div>
-      <p className="mt-1 text-xs leading-5 text-zinc-400">{description}</p>
+      <p className="mt-1 text-[11px] leading-4 text-zinc-400">{description}</p>
     </div>
   );
 }
@@ -1242,7 +1243,7 @@ function HintPanel({
   const remaining = hints.length - hintsRevealed;
 
   return (
-    <div className="rounded-lg border border-zinc-700 bg-zinc-900/90 p-4">
+    <div className="relative min-w-0 rounded-lg border border-zinc-700 bg-zinc-900 p-4">
       <p className="text-xs font-black uppercase tracking-[0.15em] text-zinc-500">
         ヒント
       </p>

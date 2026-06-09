@@ -47,7 +47,16 @@ async function resetProblemContainer(problemId) {
   const problem = PROBLEMS[problemId];
   if (!problem) throw new Error(`Unknown problem: ${problemId}`);
 
-  await runCompose(['up', problem.composeService, '--build', '-d', '--force-recreate']);
+  // Force-remove the existing container first so `up` creates a clean one.
+  // `--force-recreate` alone races on the legacy docker-compose 5.x in this
+  // env (rename to tmp name conflicts on a hot restart), leaving the next
+  // verify call to fail with "container name already in use".
+  try {
+    await runDocker(['rm', '-f', problem.container]);
+  } catch {
+    // Container may not exist; ignore.
+  }
+  await runCompose(['up', '--build', '-d', problem.composeService]);
   await waitForHealth(problem.port, 30000);
 }
 

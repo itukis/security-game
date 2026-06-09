@@ -1,7 +1,6 @@
 const fs = require('fs');
 const { runAttack } = require('../../attack-engine/src/runner');
 const { applyPatch, PROBLEMS, resetProblemContainer } = require('./applyPatch');
-const { runCompose } = require('./dockerCli');
 
 async function verify({ problemId, patchPath }) {
   const patchString = fs.readFileSync(patchPath, 'utf8');
@@ -35,14 +34,11 @@ async function verify({ problemId, patchPath }) {
   const result = { attackBefore, attackAfter, passed };
   console.log(JSON.stringify(result, null, 2));
 
-  // Reset container to baseline (vulnerable) after verify so that
-  // manual exploit attempts in Step 1 work on the next iteration.
-  // Fire-and-forget: the rebuild takes ~10s; the user won't navigate
-  // back to Step 1 before then. Failures are logged but don't fail
-  // the verify response — baseline reset is best-effort cleanup.
-  runCompose(['up', problem.composeService, '--build', '-d', '--force-recreate']).catch((err) => {
-    console.error(`Post-verify baseline reset failed for ${problemId}: ${err.message}`);
-  });
+  // Caller (server.js) is responsible for the post-verify baseline reset.
+  // Done outside this function so it can be enqueued onto the orchestrator's
+  // container mutation queue — the previous fire-and-forget here raced with
+  // subsequent verify calls and left containers in a "name already in use"
+  // state.
 
   return result;
 }

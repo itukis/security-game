@@ -39,7 +39,7 @@ export function CodeEditor({
   }
 
   return (
-    <section className="rounded-lg border border-zinc-700 bg-zinc-900/95 p-3 shadow-xl shadow-black/30 sm:p-4">
+    <section className="relative min-w-0 rounded-lg border border-zinc-700 bg-zinc-900 p-3 shadow-xl shadow-black/30 sm:p-4">
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">

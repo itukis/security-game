@@ -55,7 +55,7 @@ export function LiveAppIframe({
   const url = `http://localhost:${port}${path}`;
 
   return (
-    <section className="rounded-lg border border-cyan-300/20 bg-zinc-950 p-3 shadow-xl shadow-black/30 sm:p-4">
+    <section className="relative min-w-0 rounded-lg border border-cyan-300/20 bg-zinc-950 p-3 shadow-xl shadow-black/30 sm:p-4">
       <PreviewStatusBadge status={previewStatus} />
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 pb-3">
         <div>
