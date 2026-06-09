@@ -4,8 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
+import { SupabaseRequiredNotice } from "@/components/SupabaseRequiredNotice";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -16,6 +18,10 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  if (!isSupabaseConfigured) {
+    return <SupabaseRequiredNotice />;
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

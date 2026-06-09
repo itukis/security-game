@@ -5,20 +5,26 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { PageError } from "@/components/PageError";
 import { Spinner } from "@/components/Spinner";
+import { SupabaseRequiredNotice } from "@/components/SupabaseRequiredNotice";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
 import { getLeaderboard, type LeaderboardEntry } from "@/lib/api";
 import { classifyError, type ErrorKind } from "@/lib/errors";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 export default function LeaderboardPage() {
   const { user } = useAuth();
   const toast = useToast();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
   const [errorKind, setErrorKind] = useState<ErrorKind | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      return;
+    }
+
     let active = true;
 
     async function fetchLeaderboard() {
@@ -43,6 +49,10 @@ export default function LeaderboardPage() {
       active = false;
     };
   }, [retryCount, toast]);
+
+  if (!isSupabaseConfigured) {
+    return <SupabaseRequiredNotice />;
+  }
 
   if (loading) {
     return (

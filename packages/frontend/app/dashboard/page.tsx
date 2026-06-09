@@ -6,10 +6,12 @@ import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { PageError } from "@/components/PageError";
 import { Spinner } from "@/components/Spinner";
+import { SupabaseRequiredNotice } from "@/components/SupabaseRequiredNotice";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
 import { getDashboard, type DashboardResponse } from "@/lib/api";
 import { classifyError, type ErrorKind } from "@/lib/errors";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 function formatDate(value?: string | null) {
   if (!value) return "-";
@@ -28,7 +30,7 @@ export default function DashboardPage() {
   const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    if (!user) return;
+    if (!isSupabaseConfigured || !user) return;
 
     let active = true;
 
@@ -58,6 +60,10 @@ export default function DashboardPage() {
   async function handleLogout() {
     await signOut();
     router.push("/login");
+  }
+
+  if (!isSupabaseConfigured) {
+    return <SupabaseRequiredNotice />;
   }
 
   if (loading || dataLoading) {

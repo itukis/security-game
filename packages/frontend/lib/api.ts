@@ -1,10 +1,10 @@
 import { ApiError } from "@/lib/errors";
-import { supabase } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ??
   "http://localhost:4000";
-const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
+const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 export type DashboardResponse = {
   profile: { display_name: string | null; email: string | null };
@@ -30,7 +30,7 @@ export type LeaderboardEntry = {
 export type LeaderboardResponse = { entries: LeaderboardEntry[] };
 
 async function authHeader(): Promise<Record<string, string>> {
-  if (typeof window === "undefined") return {};
+  if (typeof window === "undefined" || !isSupabaseConfigured) return {};
   const {
     data: { session },
   } = await supabase.auth.getSession();

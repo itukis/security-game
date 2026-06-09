@@ -33,58 +33,58 @@ export function Header() {
           </span>
         </Link>
 
-        <nav className="flex items-center gap-2 text-sm font-bold">
-          <Link
-            href="/challenges"
-            className="rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100"
-          >
-            Challenges
-          </Link>
-          {user ? (
-            <>
-              <Link
-                href="/dashboard"
-                className="rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100"
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/leaderboard"
-                className="rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100"
-              >
-                Leaderboard
-              </Link>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="rounded border border-rose-400/40 bg-rose-400/10 px-3 py-2 text-rose-100 transition hover:border-rose-300/70 hover:text-white"
-              >
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <Link
-                href="/login"
-                className="rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100"
-              >
-                Login
-              </Link>
-              <Link
-                href="/signup"
-                className="rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100"
-              >
-                Sign up
-              </Link>
-              <Link
-                href="/leaderboard"
-                className="rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100"
-              >
-                Leaderboard
-              </Link>
-            </>
-          )}
-        </nav>
+          <nav className="flex items-center gap-2 text-sm font-bold">
+            <Link
+              href="/challenges"
+              className="rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100"
+            >
+              Challenges
+            </Link>
+            {user ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className="rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  href="/leaderboard"
+                  className="rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100"
+                >
+                  Leaderboard
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="rounded border border-rose-400/40 bg-rose-400/10 px-3 py-2 text-rose-100 transition hover:border-rose-300/70 hover:text-white"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100"
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/signup"
+                  className="rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100"
+                >
+                  Sign up
+                </Link>
+                <Link
+                  href="/leaderboard"
+                  className="rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100"
+                >
+                  Leaderboard
+                </Link>
+              </>
+            )}
+          </nav>
       </div>
     </header>
   );

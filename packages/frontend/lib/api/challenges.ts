@@ -9,7 +9,7 @@ import {
   problemOrder,
   type ProblemId,
 } from "@/lib/problemContent";
-import { supabase } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 export const DEFAULT_PROBLEM_ID: ProblemId = "sqli-login";
 const STATIC_ONLY_PROBLEM_IDS = new Set<ProblemId>([
@@ -25,7 +25,7 @@ const API_BASE_URL =
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 async function authHeader(): Promise<Record<string, string>> {
-  if (typeof window === "undefined") return {};
+  if (typeof window === "undefined" || !isSupabaseConfigured) return {};
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -100,6 +100,23 @@ export async function verifyPatch(
     };
   } catch {
     throw new Error("Verify APIのレスポンスを解析できませんでした。");
+  }
+}
+
+export async function resetContainer(id: string): Promise<void> {
+  // Static-only problems have no container to reset.
+  if (USE_MOCK || isStaticOnlyProblem(id)) return;
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/problems/${id}/reset`, {
+      method: "POST",
+    });
+    if (!response.ok) {
+      // Best-effort cleanup. The next verify will reset anyway, so just log.
+      console.warn(`Container reset failed for ${id} (${response.status})`);
+    }
+  } catch (err) {
+    console.warn(`Container reset request failed for ${id}:`, err);
   }
 }
 
