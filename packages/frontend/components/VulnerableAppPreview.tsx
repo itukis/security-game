@@ -45,21 +45,21 @@ export function VulnerableAppPreview({
   const referencePayload = REFERENCE_PAYLOAD_BY_KIND[kind];
 
   return (
-    <div className="rounded-lg border border-cyan-300/20 bg-zinc-950 p-4">
+    <div className="relative min-w-0 rounded-lg border border-cyan-300/20 bg-zinc-950 p-4">
       <PreviewStatusBadge status={previewStatus} />
-      <div className="mb-4 flex items-center justify-between gap-3 border-b border-zinc-800 pb-3">
-        <div>
+      <div className="mb-4 flex min-w-0 items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
             Live Preview
           </p>
-          <h3 className="mt-1 text-lg font-bold text-white">
+          <h3 className="mt-1 break-words text-lg font-bold text-white">
             {challenge.vulnerableAppTitle}
           </h3>
-          <p className="mt-1 font-mono text-xs text-zinc-500">
+          <p className="mt-1 break-all font-mono text-xs text-zinc-500">
             {challenge.targetEndpoint}
           </p>
         </div>
-        <span className="h-3 w-3 rounded-full bg-emerald-300 shadow-[0_0_16px_rgba(110,231,183,0.85)]" />
+        <span className="h-3 w-3 flex-shrink-0 rounded-full bg-emerald-300 shadow-[0_0_16px_rgba(110,231,183,0.85)]" />
       </div>
 
       {kind === "login" ? (
@@ -247,8 +247,6 @@ const CONTAINER_DOWN_MESSAGE =
 const MANUAL_INPUT_INSTRUCTION =
   "ヒントを見ながら自分でフィールドへ入力し、「Sign in」で送信します。";
 
-const SQLI_NORMAL_USERNAME = "rookie@example.test";
-const SQLI_NORMAL_PASSWORD = "password123";
 // USERNAME-field injection: the `--` comments out the trailing
 // `AND password = '...'` clause, so any value passes auth.
 const SQLI_EXPLOIT_USERNAME = "' OR '1'='1' --";
@@ -345,7 +343,7 @@ function LoginPreview({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded border border-zinc-700 bg-zinc-100 p-4 text-zinc-950"
+      className="relative min-w-0 rounded border border-zinc-700 bg-zinc-100 p-4 text-zinc-950"
     >
       <div className="mb-4 flex items-center gap-3">
         <div className="grid h-10 w-10 place-items-center rounded bg-zinc-950 text-sm font-black text-cyan-200">
@@ -539,7 +537,7 @@ function CommentsPreview({
   }, [autoTestNonce, problemId]);
 
   return (
-    <div className="rounded border border-zinc-700 bg-zinc-100 p-4 text-zinc-950">
+    <div className="relative min-w-0 rounded border border-zinc-700 bg-zinc-100 p-4 text-zinc-950">
       <div className="mb-4 flex items-center gap-3">
         <div className="grid h-10 w-10 place-items-center rounded bg-zinc-950 text-sm font-black text-amber-200">
           CB
@@ -625,7 +623,7 @@ function CommentsPreview({
 
 function DownloadPreview() {
   return (
-    <div className="rounded border border-zinc-700 bg-zinc-100 p-4 text-zinc-950">
+    <div className="relative min-w-0 rounded border border-zinc-700 bg-zinc-100 p-4 text-zinc-950">
       <div className="mb-4 flex items-center gap-3">
         <div className="grid h-10 w-10 place-items-center rounded bg-zinc-950 text-sm font-black text-emerald-200">
           DL
@@ -673,7 +671,7 @@ function DownloadPreview() {
 
 function PingPreview() {
   return (
-    <div className="rounded border border-zinc-700 bg-zinc-100 p-4 text-zinc-950">
+    <div className="relative min-w-0 rounded border border-zinc-700 bg-zinc-100 p-4 text-zinc-950">
       <div className="mb-4 flex items-center gap-3">
         <div className="grid h-10 w-10 place-items-center rounded bg-zinc-950 text-sm font-black text-violet-200">
           NET
@@ -847,7 +845,7 @@ function ProfilePreview({
   }, [autoTestNonce]);
 
   return (
-    <div className="rounded border border-zinc-700 bg-zinc-100 p-4 text-zinc-950">
+    <div className="relative min-w-0 rounded border border-zinc-700 bg-zinc-100 p-4 text-zinc-950">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-full bg-zinc-950 text-sm font-black text-cyan-200">

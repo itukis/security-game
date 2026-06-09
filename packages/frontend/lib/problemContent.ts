@@ -3,6 +3,22 @@ import type {
   ProblemPresentation,
   VulnerabilityType,
 } from "@/lib/challengeTypes";
+import { makePatch } from "@/lib/makePatch";
+
+// Build a wrong-option unified diff from initial code + a single replacement.
+// The hand-written `@@`-only hunks that this replaces failed `git apply --check`
+// in the orchestrator, so the user got a "通信エラー" toast instead of the
+// intended "防御失敗" result for wrong picks.
+function wrongPatch(
+  initial: string,
+  find: string,
+  replace: string,
+): string {
+  if (!initial.includes(find)) {
+    throw new Error(`wrongPatch: source string not found in initial code`);
+  }
+  return makePatch("src/server.js", initial, initial.replace(find, replace));
+}
 
 // Static, per-problem content. Single source of truth for all 5 missions.
 // Loaded by both mock mode (mockChallenges) and real API mode
@@ -393,13 +409,11 @@ export const problemContent: Record<ProblemId, ProblemContent> = {
         title: "入力値を trim してから結合する",
         description:
           "空白を取り除くだけでは、SQLの構文として解釈される問題は残ります。",
-        patch: [
-          "--- a/src/server.js",
-          "+++ b/src/server.js",
-          "@@",
-          "-    const row = db.prepare(sql).get();",
-          "+    const row = db.prepare(sql.trim()).get();",
-        ].join("\n"),
+        patch: wrongPatch(
+          SQLI_INITIAL_CODE,
+          "    const row = db.prepare(sql).get();",
+          "    const row = db.prepare(sql.trim()).get();",
+        ),
         isCorrect: false,
       },
       {
@@ -415,13 +429,11 @@ export const problemContent: Record<ProblemId, ProblemContent> = {
         title: "パスワード欄を hidden にする",
         description:
           "見た目だけの変更です。サーバー側のSQL組み立てに穴が残ります。",
-        patch: [
-          "--- a/src/server.js",
-          "+++ b/src/server.js",
-          "@@",
-          "-    res.json({ success: false });",
-          "+    res.json({ success: false, hint: 'try again' });",
-        ].join("\n"),
+        patch: wrongPatch(
+          SQLI_INITIAL_CODE,
+          "      res.json({ success: false });",
+          "      res.json({ success: false, hint: 'try again' });",
+        ),
         isCorrect: false,
       },
     ],
@@ -489,13 +501,11 @@ export const problemContent: Record<ProblemId, ProblemContent> = {
         title: "<script> タグだけ正規表現で削る",
         description:
           "<script> だけは消えますが、onerror= や onclick= などの属性経由の攻撃が残ります。",
-        patch: [
-          "--- a/src/server.js",
-          "+++ b/src/server.js",
-          "@@",
-          "-    .map((c) => `<div class=\"comment\"><b>${c.author}</b>: ${c.text}</div>`)",
-          "+    .map((c) => `<div class=\"comment\"><b>${c.author}</b>: ${String(c.text).replace(/<script[^>]*>.*?<\\/script>/gi, '')}</div>`)",
-        ].join("\n"),
+        patch: wrongPatch(
+          XSS_INITIAL_CODE,
+          "    .map((c) => `<div class=\"comment\"><b>${c.author}</b>: ${c.text}</div>`)",
+          "    .map((c) => `<div class=\"comment\"><b>${c.author}</b>: ${String(c.text).replace(/<script[^>]*>.*?<\\/script>/gi, '')}</div>`)",
+        ),
         isCorrect: false,
       },
       {
@@ -511,13 +521,11 @@ export const problemContent: Record<ProblemId, ProblemContent> = {
         title: "レスポンスを text/plain にする",
         description:
           "見た目は安全に見えますが、HTML表示を期待する画面では使えず、本質的な原因は残ります。",
-        patch: [
-          "--- a/src/server.js",
-          "+++ b/src/server.js",
-          "@@",
-          "-  res.setHeader('Content-Type', 'text/html');",
-          "+  res.setHeader('Content-Type', 'text/plain');",
-        ].join("\n"),
+        patch: wrongPatch(
+          XSS_INITIAL_CODE,
+          "  res.setHeader('Content-Type', 'text/html');",
+          "  res.setHeader('Content-Type', 'text/plain');",
+        ),
         isCorrect: false,
       },
     ],
@@ -585,14 +593,11 @@ export const problemContent: Record<ProblemId, ProblemContent> = {
         title: "アクセスログを出す",
         description:
           "誰が誰のプロフィールを見たか記録するだけで、覗き見そのものは止められません。",
-        patch: [
-          "--- a/src/server.js",
-          "+++ b/src/server.js",
-          "@@",
-          "-app.get('/profile/:id', (req, res) => {",
-          "+app.get('/profile/:id', (req, res) => {",
-          "+  console.log('profile read', req.userId, '->', req.params.id);",
-        ].join("\n"),
+        patch: wrongPatch(
+          IDOR_INITIAL_CODE,
+          "app.get('/profile/:id', (req, res) => {\n  const profile = PROFILES[req.params.id];",
+          "app.get('/profile/:id', (req, res) => {\n  console.log('profile read', req.userId, '->', req.params.id);\n  const profile = PROFILES[req.params.id];",
+        ),
         isCorrect: false,
       },
       {
@@ -608,14 +613,11 @@ export const problemContent: Record<ProblemId, ProblemContent> = {
         title: "secret フィールドだけ返さない",
         description:
           "一部の項目を隠すだけで、他人の名前やメールは依然として取れてしまいます。",
-        patch: [
-          "--- a/src/server.js",
-          "+++ b/src/server.js",
-          "@@",
-          "-  res.json(profile);",
-          "+  const { secret: _secret, ...safe } = profile;",
-          "+  res.json(safe);",
-        ].join("\n"),
+        patch: wrongPatch(
+          IDOR_INITIAL_CODE,
+          "  res.json(profile);",
+          "  const { secret: _secret, ...safe } = profile;\n  res.json(safe);",
+        ),
         isCorrect: false,
       },
     ],
@@ -689,14 +691,11 @@ export const problemContent: Record<ProblemId, ProblemContent> = {
         title: "../ を文字列置換で削る",
         description:
           "req.query.name から ../ を除去しますが、....// のように入れ子にした文字列で迂回できます。",
-        patch: [
-          "--- a/src/server.js",
-          "+++ b/src/server.js",
-          "@@",
-          "-  const name = req.query.name;",
-          "+  const name = req.query.name.replace(/\\.\\.\\/+/g, '');",
-          "   const filePath = path.join(__dirname, 'public', name);",
-        ].join("\n"),
+        patch: wrongPatch(
+          PATH_TRAVERSAL_INITIAL_CODE,
+          "  const name = req.query.name;",
+          "  const name = req.query.name.replace(/\\.\\.\\/+/g, '');",
+        ),
         isCorrect: false,
       },
       {
@@ -712,14 +711,11 @@ export const problemContent: Record<ProblemId, ProblemContent> = {
         title: "コードにコメントで注意書きを追加する",
         description:
           "開発者への注意喚起にはなりますが、実行時に ../ を弾く処理は一切追加されません。",
-        patch: [
-          "--- a/src/server.js",
-          "+++ b/src/server.js",
-          "@@",
-          " app.get('/download', (req, res) => {",
-          "+  // TODO: name に ../ を渡さないよう呼び出し元で対処すること",
-          "   const name = req.query.name;",
-        ].join("\n"),
+        patch: wrongPatch(
+          PATH_TRAVERSAL_INITIAL_CODE,
+          "app.get('/download', (req, res) => {\n  const name = req.query.name;",
+          "app.get('/download', (req, res) => {\n  // TODO: name に ../ を渡さないよう呼び出し元で対処すること\n  const name = req.query.name;",
+        ),
         isCorrect: false,
       },
     ],
@@ -793,15 +789,11 @@ export const problemContent: Record<ProblemId, ProblemContent> = {
         title: "; だけを除去してから exec に渡す",
         description:
           "; を消しても、&& や | やバッククォートなど他のメタ文字でコマンド追加実行が可能です。",
-        patch: [
-          "--- a/src/server.js",
-          "+++ b/src/server.js",
-          "@@",
-          "   const { host } = req.body;",
-          "-  exec(`ping -c 1 ${host}`, (err, stdout, stderr) => {",
-          "+  const safeHost = host.replace(/;/g, '');",
-          "+  exec(`ping -c 1 ${safeHost}`, (err, stdout, stderr) => {",
-        ].join("\n"),
+        patch: wrongPatch(
+          CMD_INJECTION_INITIAL_CODE,
+          "  const { host } = req.body;\n  exec(`ping -c 1 ${host}`, (err, stdout, stderr) => {",
+          "  const { host } = req.body;\n  const safeHost = host.replace(/;/g, '');\n  exec(`ping -c 1 ${safeHost}`, (err, stdout, stderr) => {",
+        ),
         isCorrect: false,
       },
       {
@@ -817,14 +809,11 @@ export const problemContent: Record<ProblemId, ProblemContent> = {
         title: "ユーザー入力を二重引用符で囲む",
         description:
           "二重引用符の中でも \" や $() は解釈されるため、コマンドインジェクションを完全には防げません。",
-        patch: [
-          "--- a/src/server.js",
-          "+++ b/src/server.js",
-          "@@",
-          "   const { host } = req.body;",
-          '-  exec(`ping -c 1 ${host}`, (err, stdout, stderr) => {',
-          '+  exec(`ping -c 1 "${host}"`, (err, stdout, stderr) => {',
-        ].join("\n"),
+        patch: wrongPatch(
+          CMD_INJECTION_INITIAL_CODE,
+          "  exec(`ping -c 1 ${host}`, (err, stdout, stderr) => {",
+          '  exec(`ping -c 1 "${host}"`, (err, stdout, stderr) => {',
+        ),
         isCorrect: false,
       },
     ],

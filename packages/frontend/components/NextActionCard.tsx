@@ -14,6 +14,16 @@ type NextActionCardProps = {
   status: QuestUiStatus;
 };
 
+const STATUS_BADGE_LABEL: Record<QuestUiStatus, string> = {
+  idle: "未開始",
+  attacked: "攻撃済み",
+  codeReviewed: "原因確認済み",
+  patchSelected: "修正案選択済み",
+  verifying: "検証中",
+  passed: "防御成功",
+  failed: "防御失敗",
+};
+
 // Status-driven defaults. The `attacked` / `codeReviewed` bodies are
 // overridable per-problem via props because they reference the specific
 // vulnerability's terminology.
@@ -64,22 +74,22 @@ export function NextActionCard({
 
   const toneClass =
     status === "passed"
-      ? "border-emerald-300/40 bg-emerald-300/10 text-emerald-100"
+      ? "border-emerald-300/40 bg-zinc-950 text-emerald-100"
       : status === "failed"
-        ? "border-rose-300/40 bg-rose-300/10 text-rose-100"
-        : "border-amber-300/40 bg-amber-300/10 text-amber-100";
+        ? "border-rose-300/40 bg-zinc-950 text-rose-100"
+        : "border-amber-300/40 bg-zinc-950 text-amber-100";
 
   return (
-    <aside className={`rounded-lg border p-4 shadow-xl shadow-black/30 ${toneClass}`}>
-      <p className="text-sm font-black uppercase tracking-[0.18em]">
+    <aside className={`relative min-w-0 rounded border p-3 shadow-lg shadow-black/25 ${toneClass}`}>
+      <p className="text-xs font-black uppercase tracking-[0.16em]">
         {base.label}
       </p>
-      <p className="mt-2 inline-flex rounded border border-white/15 bg-black/25 px-2 py-1 text-xs font-bold text-zinc-200">
-        状態: {status}
+      <p className="mt-1.5 inline-flex rounded border border-white/15 bg-black/25 px-2 py-0.5 text-[10px] font-bold text-zinc-200">
+        状態: {STATUS_BADGE_LABEL[status]}
       </p>
-      <p className="mt-2 text-base leading-7 text-zinc-100">{body}</p>
+      <p className="mt-2 text-sm leading-5 text-zinc-100">{body}</p>
       {selectedPatchTitle ? (
-        <p className="mt-3 text-sm leading-6 text-zinc-300">
+        <p className="mt-2 text-xs leading-5 text-zinc-300">
           選択中の修正案:{" "}
           <span className="font-bold text-white">{selectedPatchTitle}</span>
         </p>

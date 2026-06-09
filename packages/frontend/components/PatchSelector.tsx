@@ -16,7 +16,7 @@ export function PatchSelector({
   onSelectPatch,
 }: PatchSelectorProps) {
   return (
-    <section className="rounded-lg border border-zinc-700 bg-zinc-900/95 p-4 shadow-xl shadow-black/30 sm:p-5">
+    <section className="relative min-w-0 rounded-lg border border-zinc-700 bg-zinc-900 p-4 shadow-xl shadow-black/30 sm:p-5">
       <div>
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-200">
           Patch Select

