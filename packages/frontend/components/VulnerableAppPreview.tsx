@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
   type FormEvent,
@@ -11,10 +12,8 @@ import type { Challenge, PreviewServerStatus } from "@/lib/challengeTypes";
 
 type Tone = "neutral" | "danger" | "safe";
 type PreviewKind = "login" | "comments" | "profile" | "download" | "ping";
-type InlineHint = {
-  label: string;
-  text: string;
-};
+
+const SQLI_PAYLOAD = "' OR 1=1--";
 
 interface VulnerableAppPreviewProps {
   challenge: Challenge;
@@ -86,9 +85,13 @@ export function VulnerableAppPreview({
         />
       ) : null}
 
-      {kind === "download" ? <DownloadPreview /> : null}
+        {kind === "download" ? (
+          <DownloadPreview onExploitDetected={onExploitDetected} />
+        ) : null}
 
-      {kind === "ping" ? <PingPreview /> : null}
+        {kind === "ping" ? (
+          <PingPreview onExploitDetected={onExploitDetected} />
+        ) : null}
 
       <div className="mt-4 rounded border border-rose-300/20 bg-rose-300/10 p-3">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-rose-100">
@@ -164,7 +167,7 @@ const REFERENCE_PAYLOAD_BY_KIND: Record<
 > = {
   login: {
     label: "参考ペイロード（USERNAME 欄に入力）",
-    value: "' OR '1'='1' --",
+    value: SQLI_PAYLOAD,
   },
   comments: {
     label: "参考ペイロード（text 欄に入力）",
@@ -203,53 +206,18 @@ function ResultBanner({ tone, message }: { tone: Tone; message: string }) {
   );
 }
 
-function InlineHintSection({ hints }: { hints: InlineHint[] }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="mt-3 text-xs leading-5 text-zinc-500">
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        aria-expanded={open}
-        className="inline-flex items-center text-xs font-semibold text-zinc-500 underline-offset-4 transition hover:text-zinc-800 hover:underline"
-      >
-        💡 ヒント
-      </button>
-      {open ? (
-        <ul
-          role="status"
-          className="mt-2 grid gap-1 text-xs leading-5 text-zinc-600"
-        >
-          {hints.map((hint) => (
-            <li key={hint.label} className="flex gap-1.5">
-              <span aria-hidden="true">▸</span>
-              <span>
-                <span className="font-semibold text-zinc-700">
-                  {hint.label}:
-                </span>{" "}
-                {hint.text}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  );
-}
-
 function previewUrl(problemId: string, ...parts: string[]) {
-  return `/api/preview/${problemId}/${parts.join("/")}`;
+  const encodedProblemId = encodeURIComponent(problemId);
+  const encodedParts = parts.map((part) => encodeURIComponent(part)).join("/");
+  return `/api/preview/${encodedProblemId}/${encodedParts}`;
 }
 
 const CONTAINER_DOWN_MESSAGE =
   "コンテナが起動していません。docker compose up を確認してください。";
-const MANUAL_INPUT_INSTRUCTION =
-  "ヒントを見ながら自分でフィールドへ入力し、「Sign in」で送信します。";
 
-// USERNAME-field injection: the `--` comments out the trailing
+// USERNAME-field injection: `--` comments out the trailing
 // `AND password = '...'` clause, so any value passes auth.
-const SQLI_EXPLOIT_USERNAME = "' OR '1'='1' --";
+const SQLI_EXPLOIT_USERNAME = SQLI_PAYLOAD;
 const SQLI_EXPLOIT_PASSWORD = "anything";
 function LoginPreview({
   problemId,
@@ -260,15 +228,37 @@ function LoginPreview({
   onExploitDetected?: () => void;
   autoTestNonce?: number;
 }) {
+  const fieldId = useId();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [exploited, setExploited] = useState(false);
-  const [result, setResult] = useState<{
-    tone: Tone;
-    message: string;
+    const [result, setResult] = useState<{
+      tone: Tone;
+      message: string;
     detail?: string;
   } | null>(null);
+  const usernameInputRef = useRef<HTMLInputElement>(null);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+
+  // Force the DOM value back in sync with React state — browser autofill
+  // can write to the DOM directly without firing onChange.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (usernameInputRef.current && usernameInputRef.current.value !== username) {
+        usernameInputRef.current.value = username;
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, [username]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (passwordInputRef.current && passwordInputRef.current.value !== password) {
+        passwordInputRef.current.value = password;
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, [password]);
 
   async function performLogin(creds: { username: string; password: string }) {
     setLoading(true);
@@ -287,17 +277,16 @@ function LoginPreview({
         return { detected: false };
       }
 
-      if (data?.success === true) {
-        setResult({
-          tone: "danger",
+        if (data?.success === true) {
+          setResult({
+            tone: "danger",
           message: "ログイン成功 — 認証が突破されました",
           detail: data.user
             ? `返却された user: ${JSON.stringify(data.user)}`
-            : undefined,
-        });
-        setExploited(true);
-        return { detected: true };
-      }
+              : undefined,
+          });
+          return { detected: true };
+        }
       setResult({
         tone: "safe",
         message: "ログイン失敗 — 認証は正常です",
@@ -345,87 +334,68 @@ function LoginPreview({
       onSubmit={handleSubmit}
       className="relative min-w-0 rounded border border-zinc-700 bg-zinc-100 p-4 text-zinc-950"
     >
-      <div className="mb-4 flex items-center gap-3">
-        <div className="grid h-10 w-10 place-items-center rounded bg-zinc-950 text-sm font-black text-cyan-200">
-          AI
+        <div className="mb-4 flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded bg-zinc-950 text-sm font-black text-cyan-200">
+            AI
+          </div>
+          <div>
+            <p className="text-sm font-bold">Generated Login</p>
+            <p className="text-xs text-zinc-500">beta build / review needed</p>
+          </div>
         </div>
-        <div>
-          <p className="text-sm font-bold">Generated Login</p>
-          <p className="text-xs text-zinc-500">beta build / review needed</p>
-        </div>
-      </div>
 
-      <label className="block text-xs font-bold uppercase tracking-[0.16em] text-zinc-600">
-        Username / Email <span className="text-rose-700">← 注入対象</span>
-        <input
-          className="mt-2 h-11 w-full rounded border border-zinc-300 bg-white px-3 font-mono text-sm text-zinc-800"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="ここにペイロードを入力してみよう"
-          autoComplete="off"
-          spellCheck={false}
-        />
-      </label>
+        <label className="block text-xs font-bold uppercase tracking-[0.16em] text-zinc-600">
+          Username / Email <span className="text-rose-700">← 注入対象</span>
+          <input
+            ref={usernameInputRef}
+            className="mt-2 h-11 w-full rounded border border-zinc-300 bg-white px-3 font-mono text-sm text-zinc-800"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="ここにペイロードを入力してみよう"
+            autoComplete="one-time-code"
+            name={`field-${fieldId}-username`}
+            spellCheck={false}
+          />
+        </label>
 
-      <label className="mt-3 block text-xs font-bold uppercase tracking-[0.16em] text-zinc-600">
-        Password
-        <input
-          className="mt-2 h-11 w-full rounded border border-zinc-300 bg-white px-3 font-mono text-sm text-zinc-800"
-          type="text"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="任意の値で OK"
-          autoComplete="off"
-          spellCheck={false}
-        />
-      </label>
+        <label className="mt-3 block text-xs font-bold uppercase tracking-[0.16em] text-zinc-600">
+          Password
+          <input
+            ref={passwordInputRef}
+            className="mt-2 h-11 w-full rounded border border-zinc-300 bg-white px-3 font-mono text-sm text-zinc-800"
+            type="text"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="任意の値で OK"
+            autoComplete="one-time-code"
+            name={`field-${fieldId}-password`}
+            spellCheck={false}
+          />
+        </label>
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="mt-4 h-11 w-full rounded bg-zinc-950 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {loading ? "送信中..." : "Sign in"}
-      </button>
+        <button
+          type="submit"
+          disabled={loading}
+          className="mt-4 h-11 w-full rounded bg-zinc-950 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? "送信中..." : "Sign in"}
+        </button>
 
-      {result ? (
-        <>
-          <ResultBanner tone={result.tone} message={result.message} />
-          {result.detail ? (
-            <p className="mt-2 break-all font-mono text-xs text-zinc-600">
-              {result.detail}
-            </p>
-          ) : null}
-          {exploited ? (
-            <p className="mt-2 rounded border border-rose-300/60 bg-rose-50 p-3 text-xs leading-5 text-rose-800">
-              ユーザー名欄に{" "}
-              <code className="font-mono">{`' OR '1'='1' --`}</code>{" "}
-              を入れると、SQL クエリが{" "}
-              <code className="font-mono">
-                {`WHERE username = '' OR '1'='1' --' AND password = '...'`}
-              </code>{" "}
-              に変わります。<code className="font-mono">--</code>{" "}
-              以降がコメントアウトされ、パスワード判定をスキップして
-              最初のユーザーが返ります。
-            </p>
-          ) : null}
-        </>
-      ) : null}
+        {result ? (
+          <>
+            <ResultBanner tone={result.tone} message={result.message} />
+            {result.detail ? (
+              <p className="mt-2 break-all font-mono text-xs text-zinc-600">
+                {result.detail}
+              </p>
+            ) : null}
+          </>
+        ) : null}
     </form>
   );
 }
 
 const XSS_EXPLOIT_TEXT = "<script>alert('xss')</script>";
-const XSS_HINTS: InlineHint[] = [
-  {
-    label: "通常",
-    text: "適当なコメントを入力して送信",
-  },
-  {
-    label: "攻撃",
-    text: "コメント欄に <script>alert('xss')</script> を入力",
-  },
-];
 
 function CommentsPreview({
   problemId,
@@ -436,16 +406,28 @@ function CommentsPreview({
   onExploitDetected?: () => void;
   autoTestNonce?: number;
 }) {
+  const fieldId = useId();
   const [author, setAuthor] = useState("");
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
-  const [exploited, setExploited] = useState(false);
-  const [result, setResult] = useState<{
-    tone: Tone;
+    const [result, setResult] = useState<{
+      tone: Tone;
     message: string;
     detail?: string;
   } | null>(null);
   const [iframeKey, setIframeKey] = useState(0);
+  const authorInputRef = useRef<HTMLInputElement>(null);
+
+  // Force the DOM value back in sync with React state — browser autofill
+  // can write to the DOM directly without firing onChange.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (authorInputRef.current && authorInputRef.current.value !== author) {
+        authorInputRef.current.value = author;
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, [author]);
 
   const containsScript = useCallback((s: string) => /<script\b/i.test(s), []);
 
@@ -473,7 +455,6 @@ function CommentsPreview({
             message:
               "投稿成功 — <script> がそのままHTMLへ流し込まれます",
           });
-          setExploited(true);
           onExploitDetected?.();
         } else {
           setResult({
@@ -552,10 +533,13 @@ function CommentsPreview({
         <label className="block text-xs font-bold uppercase tracking-[0.16em] text-zinc-600">
           author
           <input
+            ref={authorInputRef}
             className="mt-2 h-10 w-full rounded border border-zinc-300 bg-white px-3 font-mono text-sm text-zinc-800"
             value={author}
             onChange={(e) => setAuthor(e.target.value)}
             placeholder="表示名"
+            autoComplete="one-time-code"
+            name={`field-${fieldId}-author`}
             spellCheck={false}
           />
         </label>
@@ -576,10 +560,6 @@ function CommentsPreview({
         >
           {loading ? "投稿中..." : "投稿する"}
         </button>
-        <InlineHintSection hints={XSS_HINTS} />
-        <p className="mt-3 text-xs leading-5 text-zinc-500">
-          {MANUAL_INPUT_INSTRUCTION}
-        </p>
       </form>
 
       {result ? (
@@ -591,15 +571,6 @@ function CommentsPreview({
             </p>
           ) : null}
         </>
-      ) : null}
-
-      {exploited ? (
-        <p className="mt-2 rounded border border-rose-300/60 bg-rose-50 p-3 text-xs leading-5 text-rose-800">
-          サーバーは text をエスケープせずに HTML 文字列へ結合しています。
-          下の iframe で <code className="font-mono">&lt;script&gt;</code>{" "}
-          がそのままレンダリングされ、別ユーザーの閲覧時に JavaScript
-          として実行されます。
-        </p>
       ) : null}
 
       <div className="mt-4">
@@ -621,9 +592,46 @@ function CommentsPreview({
   );
 }
 
-function DownloadPreview() {
+function DownloadPreview({
+  onExploitDetected,
+}: {
+  onExploitDetected?: () => void;
+}) {
+  const fieldId = useId();
+  const [filename, setFilename] = useState("");
+  const [result, setResult] = useState<{
+    tone: Tone;
+    message: string;
+    detail?: string;
+  } | null>(null);
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    const isTraversal = filename.includes("../");
+    if (isTraversal) {
+      setResult({
+        tone: "danger",
+        message: "非公開ファイルにアクセスできました",
+        detail: "FLAG{demo_path_traversal}",
+      });
+      onExploitDetected?.();
+      return;
+    }
+
+    setResult({
+      tone: "neutral",
+      message: filename.trim()
+        ? "公開ファイルを取得しました"
+        : "ファイル名を入力してください",
+      detail: filename.trim() ? "public/readme.txt のような通常ファイルです。" : undefined,
+    });
+  }
+
   return (
-    <div className="relative min-w-0 rounded border border-zinc-700 bg-zinc-100 p-4 text-zinc-950">
+    <form
+      onSubmit={handleSubmit}
+      className="relative min-w-0 rounded border border-zinc-700 bg-zinc-100 p-4 text-zinc-950"
+    >
       <div className="mb-4 flex items-center gap-3">
         <div className="grid h-10 w-10 place-items-center rounded bg-zinc-950 text-sm font-black text-emerald-200">
           DL
@@ -655,23 +663,71 @@ function DownloadPreview() {
       <label className="mt-4 block text-xs font-bold uppercase tracking-[0.16em] text-zinc-600">
         ファイル名
         <input
-          className="mt-2 h-11 w-full rounded border border-rose-300 bg-rose-50 px-3 text-sm font-mono text-rose-800"
-          readOnly
-          value="../../secret/flag.txt"
+          className="mt-2 h-11 w-full rounded border border-zinc-300 bg-white px-3 text-sm font-mono text-zinc-800"
+          value={filename}
+          onChange={(e) => setFilename(e.target.value)}
+          placeholder="ここにペイロードを入力してみよう"
+          autoComplete="one-time-code"
+          name={`field-${fieldId}-filename`}
+          spellCheck={false}
         />
       </label>
 
-      <div className="mt-3 rounded border border-rose-300 bg-rose-50 px-3 py-2 text-xs leading-5 text-rose-700">
-        ../ を含む名前をそのまま path.join に渡すと、public/
-        の外に脱出できてしまう状態です。
-      </div>
-    </div>
+      <button
+        type="submit"
+        className="mt-3 h-11 w-full rounded bg-zinc-950 text-sm font-bold text-white transition hover:bg-zinc-800"
+      >
+        GET /download
+      </button>
+
+      {result ? (
+        <>
+          <ResultBanner tone={result.tone} message={result.message} />
+          {result.detail ? (
+            <p className="mt-2 break-all font-mono text-xs text-zinc-600">
+              {result.detail}
+            </p>
+          ) : null}
+        </>
+      ) : null}
+
+    </form>
   );
 }
 
-function PingPreview() {
+function PingPreview({
+  onExploitDetected,
+}: {
+  onExploitDetected?: () => void;
+}) {
+  const fieldId = useId();
+  const [host, setHost] = useState("");
+  const hostInputRef = useRef<HTMLInputElement>(null);
+
+  // Force the DOM value back in sync with React state — browser autofill
+  // can write to the DOM directly without firing onChange.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (hostInputRef.current && hostInputRef.current.value !== host) {
+        hostInputRef.current.value = host;
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, [host]);
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    const hasCommandSeparator = /[;&|`$()]/.test(host);
+    if (hasCommandSeparator) {
+      onExploitDetected?.();
+    }
+  }
+
   return (
-    <div className="relative min-w-0 rounded border border-zinc-700 bg-zinc-100 p-4 text-zinc-950">
+    <form
+      onSubmit={handleSubmit}
+      className="relative min-w-0 rounded border border-zinc-700 bg-zinc-100 p-4 text-zinc-950"
+    >
       <div className="mb-4 flex items-center gap-3">
         <div className="grid h-10 w-10 place-items-center rounded bg-zinc-950 text-sm font-black text-violet-200">
           NET
@@ -690,39 +746,45 @@ function PingPreview() {
       <label className="mt-4 block text-xs font-bold uppercase tracking-[0.16em] text-zinc-600">
         ホスト
         <input
-          className="mt-2 h-11 w-full rounded border border-rose-300 bg-rose-50 px-3 text-sm font-mono text-rose-800"
-          readOnly
-          value="127.0.0.1; cat /etc/passwd"
+          ref={hostInputRef}
+          className="mt-2 h-11 w-full rounded border border-zinc-300 bg-white px-3 text-sm font-mono text-zinc-800"
+          value={host}
+          onChange={(e) => setHost(e.target.value)}
+          placeholder="ここにペイロードを入力してみよう"
+          autoComplete="one-time-code"
+          name={`field-${fieldId}-host`}
+          spellCheck={false}
         />
       </label>
 
-      <div className="mt-3 rounded border border-zinc-200 bg-black px-3 py-2 font-mono text-xs text-zinc-300">
-        <p className="text-zinc-500">$ ping -c 1 127.0.0.1; cat /etc/passwd</p>
-        <p className="mt-1 text-emerald-400">
-          PING 127.0.0.1 ... 1 packets transmitted
-        </p>
-        <p className="mt-1 text-rose-400">
-          root:x:0:0:root:/root:/bin/bash ...
-        </p>
-      </div>
+      <button
+        type="submit"
+        className="mt-3 h-11 w-full rounded bg-zinc-950 text-sm font-bold text-white transition hover:bg-zinc-800"
+      >
+        POST /ping
+      </button>
 
-      <div className="mt-3 rounded border border-rose-300 bg-rose-50 px-3 py-2 text-xs leading-5 text-rose-700">
-        ; の後のコマンドもシェルが実行してしまう状態です。
-      </div>
-    </div>
+      <div className="mt-3 rounded border border-zinc-200 bg-black px-3 py-2 font-mono text-xs text-zinc-300">
+        {host ? (
+          <>
+            <p className="text-zinc-500">$ ping -c 1 {host}</p>
+            <p className="mt-1 text-emerald-400">
+              PING {host.split(/[;&|`$()]/)[0].trim() || host} ... 1 packets
+              transmitted
+            </p>
+            {/[;&|`$()]/.test(host) ? (
+              <p className="mt-1 text-rose-400">
+                root:x:0:0:root:/root:/bin/bash ...
+              </p>
+            ) : null}
+          </>
+        ) : (
+          <p className="text-zinc-500">$ ping -c 1 {"<host>"}</p>
+        )}
+        </div>
+      </form>
   );
 }
-
-const IDOR_HINTS: InlineHint[] = [
-  {
-    label: "通常",
-    text: "自分のID（user-1）でプロフィールを取得",
-  },
-  {
-    label: "攻撃",
-    text: "他のユーザーID（user-2）を入力してアクセス",
-  },
-];
 
 function ProfilePreview({
   problemId,
@@ -733,15 +795,27 @@ function ProfilePreview({
   onExploitDetected?: () => void;
   autoTestNonce?: number;
 }) {
+  const fieldId = useId();
   const [targetId, setTargetId] = useState("");
   const [loading, setLoading] = useState(false);
-  const [exploited, setExploited] = useState(false);
-  const [result, setResult] = useState<{
-    tone: Tone;
+    const [result, setResult] = useState<{
+      tone: Tone;
     message: string;
     body?: string;
   } | null>(null);
   const triggeredRef = useRef(false);
+  const targetIdInputRef = useRef<HTMLInputElement>(null);
+
+  // Force the DOM value back in sync with React state — browser autofill
+  // can write to the DOM directly without firing onChange.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (targetIdInputRef.current && targetIdInputRef.current.value !== targetId) {
+        targetIdInputRef.current.value = targetId;
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, [targetId]);
 
   // The "logged-in" user is fixed in this demo. The vulnerability is that
   // the server doesn't check this against the URL :id.
@@ -791,13 +865,12 @@ function ProfilePreview({
       const isOtherUser = probeId !== ACTING_USER;
 
       if (res.ok && hasSecret && isOtherUser) {
-        setResult({
-          tone: "danger",
-          message: "他のユーザーの機密情報にアクセスできました",
-          body: prettyBody,
-        });
-        setExploited(true);
-        return { detected: true };
+          setResult({
+            tone: "danger",
+            message: "他のユーザーの機密情報にアクセスできました",
+            body: prettyBody,
+          });
+          return { detected: true };
       }
 
       setResult({
@@ -821,6 +894,13 @@ function ProfilePreview({
   }
 
   async function handleFetch() {
+    if (!targetId.trim()) {
+      setResult({
+        tone: "neutral",
+        message: "ユーザーIDを入力してください",
+      });
+      return;
+    }
     const out = await performFetch(targetId);
     if (out.detected && !triggeredRef.current) {
       triggeredRef.current = true;
@@ -866,10 +946,13 @@ function ProfilePreview({
       <label className="block text-xs font-bold uppercase tracking-[0.16em] text-zinc-600">
         Target user ID <span className="text-rose-700">← URL の :id</span>
         <input
+          ref={targetIdInputRef}
           className="mt-2 h-10 w-full rounded border border-zinc-300 bg-white px-3 font-mono text-sm text-zinc-800"
           value={targetId}
           onChange={(e) => setTargetId(e.target.value)}
-          placeholder="他のユーザーIDを試してみよう (user-2, user-3)"
+          placeholder="ここにユーザーIDを入力してみよう"
+          autoComplete="one-time-code"
+          name={`field-${fieldId}-target`}
           spellCheck={false}
         />
       </label>
@@ -877,12 +960,11 @@ function ProfilePreview({
       <button
         type="button"
         onClick={handleFetch}
-        disabled={loading}
+        disabled={loading || !targetId.trim()}
         className="mt-3 h-11 w-full rounded bg-zinc-950 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? "取得中..." : "プロフィール取得"}
       </button>
-      <InlineHintSection hints={IDOR_HINTS} />
 
       {result ? (
         <>
@@ -892,20 +974,8 @@ function ProfilePreview({
               {result.body}
             </pre>
           ) : null}
-          {exploited ? (
-            <p className="mt-2 rounded border border-rose-300/60 bg-rose-50 p-3 text-xs leading-5 text-rose-800">
-              ハンドラは <code className="font-mono">req.userId</code>{" "}
-              （ログイン中のユーザー）と{" "}
-              <code className="font-mono">req.params.id</code>{" "}
-              （URL の対象 ID）を比較していません。{ACTING_USER}{" "}
-              としてログインしたまま URL を user-2 に書き換えただけで、他人の機密情報が返ります。
-            </p>
-          ) : null}
-        </>
-      ) : null}
-      <p className="mt-3 text-xs leading-5 text-zinc-500">
-        {MANUAL_INPUT_INSTRUCTION}
-      </p>
+          </>
+        ) : null}
     </div>
   );
 }

@@ -11,7 +11,7 @@ import { ProgressStepper } from "@/components/ProgressStepper";
 import { ResultPanel } from "@/components/ResultPanel";
 import { ScoreSummary } from "@/components/ScoreSummary";
 import { VulnerableAppPreview } from "@/components/VulnerableAppPreview";
-import { previewApplyPatch, verifyPatch } from "@/lib/api/challenges";
+import { previewApplyPatch, resetContainer, verifyPatch } from "@/lib/api/challenges";
 import type {
   Challenge,
   PreviewServerStatus,
@@ -221,6 +221,10 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
     setCompletedAt(null);
     resetPreviewApplyState();
     setPreviewAutoTestNonce(0);
+    // Safety net: the post-verify reset can get skipped (orchestrator restart,
+    // network blip) and leave the container in patched state, breaking the
+    // next Step 1 attack. Fire-and-forget — UI doesn't block on this.
+    void resetContainer(challenge.id);
   }
 
   function handleRevealHint() {

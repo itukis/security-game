@@ -364,7 +364,7 @@ export const problemContent: Record<ProblemId, ProblemContent> = {
       "ユーザー名やパスワード欄に SQL の構文を混ぜ込み、本来通らない条件で認証を成立させる。",
     causeSummary:
       "入力値をSQL文字列へ直接結合していることが原因です。プリペアドステートメントで入力値をSQL構文ではなく値として扱う修正を目指します。",
-    attackPayload: "' OR '1'='1",
+    attackPayload: "' OR 1=1--",
     attackVerifiedMessage: "ログイン認証が突破されました",
     attackVerifyDisclaimer:
       "実際の脆弱アプリケーションに対して攻撃を実行し、防御を検証します。",

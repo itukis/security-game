@@ -166,17 +166,17 @@ app.post('/problems/:id/verify', optionalAuth, async (req, res) => {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
     });
-    const recording = await recordSubmission({
-      userId: req.user && req.user.id,
-      problemId: req.params.id,
-      patch: req.body.patch,
-      passed: result.passed,
-      durationMs: result.attackAfter && result.attackAfter.durationMs,
-    });
+      if (req.user) {
+        const recording = await recordSubmission({
+          userId: req.user.id,
+          problemId: req.params.id,
+          patch: req.body.patch,
+          passed: result.passed,
+          durationMs: result.attackAfter && result.attackAfter.durationMs,
+        });
 
-    if (req.user) {
-      res.json({
-        ...result,
+        res.json({
+          ...result,
         recording: { firstClear: recording.firstClear, score: recording.score },
         appliedPatchSummary: summarizePatch(patch),
       });
@@ -199,6 +199,25 @@ app.post('/problems/:id/verify', optionalAuth, async (req, res) => {
       console.error('Verify error:', msg);
       res.status(500).json({ error: 'Verification failed due to an internal error' });
     }
+  }
+});
+
+app.post('/problems/:id/reset', async (req, res) => {
+  const { id } = req.params;
+  if (!PROBLEM_META[id]) {
+    return res.status(404).json({ error: `Problem not found: ${id}` });
+  }
+
+  // Safety net for when the fire-and-forget post-verify reset gets skipped
+  // (orchestrator crash, hot restart, etc.) — the container would otherwise
+  // stay in patched state and Step 1 attacks would fail. Frontend hits this
+  // on `handleResetMission` / `handleModeChange`.
+  try {
+    await enqueueContainerMutation(() => resetProblemContainer(id));
+    res.json({ reset: true });
+  } catch (err) {
+    console.error(`Reset failed for ${id}:`, err.message);
+    res.status(500).json({ error: 'Reset failed' });
   }
 });
 

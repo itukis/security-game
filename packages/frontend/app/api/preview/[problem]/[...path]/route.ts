@@ -28,7 +28,10 @@ async function proxy(
     );
   }
 
-  const upstreamUrl = `http://localhost:${port}/${pathParts.join("/")}`;
+  const upstreamPath = pathParts
+    .map((part) => encodeURIComponent(part))
+    .join("/");
+  const upstreamUrl = `http://localhost:${port}/${upstreamPath}`;
 
   const upstreamHeaders = new Headers();
   for (const [key, value] of request.headers.entries()) {

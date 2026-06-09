@@ -74,3 +74,18 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Disable programming ligatures on every monospace element. Geist Mono
+   collapses `--`, `==`, `=>`, `<=`, `!=` etc. into single glyphs, which
+   misleads players who must type the exploit payload character-for-character
+   (e.g. SQLi `' OR 1=1--` looked like `' OR 1=1±`). Applies to
+   `.font-mono`, raw `<code>`, `<pre>`, `<kbd>`, `<samp>` and Monaco-rendered
+   textareas styled via Tailwind. */
+.font-mono,
+code,
+pre,
+kbd,
+samp {
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
+}

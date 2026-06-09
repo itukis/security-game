@@ -5,9 +5,11 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { PageError } from "@/components/PageError";
 import { Spinner } from "@/components/Spinner";
+import { SupabaseRequiredNotice } from "@/components/SupabaseRequiredNotice";
 import { useAuth } from "@/components/AuthProvider";
 import { getDashboard, type DashboardResponse } from "@/lib/api";
 import { classifyError, type ErrorKind } from "@/lib/errors";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 function formatMemberSince(iso?: string | null) {
   if (!iso) return "-";
@@ -88,7 +90,7 @@ export default function ProfilePage() {
   const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    if (!user) return;
+    if (!isSupabaseConfigured || !user) return;
 
     let active = true;
 
@@ -111,6 +113,10 @@ export default function ProfilePage() {
       active = false;
     };
   }, [user, retryCount]);
+
+  if (!isSupabaseConfigured) {
+    return <SupabaseRequiredNotice />;
+  }
 
   if (loading || dataLoading) {
     return (

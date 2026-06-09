@@ -265,7 +265,7 @@ NEXT_PUBLIC_API_URL=http://localhost:4000
 3. `NEXT_PUBLIC_API_URL=http://localhost:4000` を設定する
 4. `npm run dev` を再起動する
 
-現在の実装では、`NEXT_PUBLIC_USE_MOCK` が文字列 `"false"` でない限りmockを使用します。
+現在の実装では、`NEXT_PUBLIC_USE_MOCK` が文字列 `"true"` の場合だけmockを使用します。
 
 ## CORS
 
@@ -352,4 +352,3 @@ Monaco Editorを入れる場合も、最終的にはエディタで生成した 
 - [ ] `passed: true` で防御成功になる
 - [ ] `passed: false` で防御失敗になる
 - [ ] APIエラー時に `ResultPanel` にエラーが表示される
-

@@ -9,20 +9,17 @@ export default function HomePage() {
 
         <section className="mx-auto flex min-h-[calc(100vh-76px)] w-full max-w-6xl flex-col justify-center px-4 py-12 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
-            <div className="flex flex-wrap gap-3">
-              <span className="rounded border border-cyan-300/40 bg-cyan-300/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.22em] text-cyan-100">
-                Cyber Security Training
-              </span>
-              <span className="rounded border border-emerald-300/30 bg-emerald-300/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.22em] text-emerald-100">
-                Mock Only
-              </span>
-            </div>
+              <div className="flex flex-wrap gap-3">
+                <span className="rounded border border-cyan-300/40 bg-cyan-300/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.22em] text-cyan-100">
+                  Cyber Security Training
+                </span>
+              </div>
 
             <h1 className="mt-6 text-4xl font-black tracking-tight text-white sm:text-6xl">
               SecurePatch Quest
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-8 text-zinc-300 sm:text-lg">
-              AIが生成したアプリ画面を新人ホワイトハッカーとして診断し、SQLインジェクション・XSS・IDOR(認可バイパス)の3カテゴリの弱点を疑似攻撃で確認し、原因コードを読んで、安全な修正案を選ぶセキュリティ学習ゲームです。
+                AIが生成したアプリ画面を新人ホワイトハッカーとして診断し、SQL Injection・XSS・IDOR・Path Traversal・Command Injection の5カテゴリの弱点を攻撃テストで確認し、原因コードを読んで、安全な修正案を選ぶセキュリティ学習ゲームです。
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -33,7 +30,7 @@ export default function HomePage() {
                 問題を始める
               </Link>
               <div className="inline-flex h-12 items-center justify-center rounded border border-zinc-700 bg-zinc-900/80 px-5 text-sm font-semibold text-zinc-300">
-                SQLi / XSS / IDOR の3問
+                  SQLi / XSS / IDOR / Path Traversal / Command Injection の5問
               </div>
             </div>
           </div>
@@ -50,7 +47,7 @@ export default function HomePage() {
                 [
                   "01",
                   "攻撃テストで弱点を確認",
-                  "本物の攻撃は行わず、mock判定でその脆弱性が刺さる動きを確認します。",
+                    "学習用の隔離された環境で、その脆弱性が刺さる動きを確認します。",
                 ],
                 [
                   "02",
