@@ -12,6 +12,10 @@ const PORT_BY_PROBLEM: Record<string, number> = {
   "sqli-login": 3001,
   "xss-comments": 3002,
   "idor-profile": 3003,
+  "csrf-transfer": 3006,
+  "hardcoded-secrets": 3007,
+  "open-redirect": 3008,
+  "file-upload": 3009,
 };
 
 const PATH_BY_PROBLEM: Record<string, string> = {
@@ -21,6 +25,10 @@ const PATH_BY_PROBLEM: Record<string, string> = {
   "sqli-login": "/health",
   "xss-comments": "/comments",
   "idor-profile": "/profile/user-1",
+  "csrf-transfer": "/balance",
+  "hardcoded-secrets": "/",
+  "open-redirect": "/dashboard",
+  "file-upload": "/uploads",
 };
 
 interface LiveAppIframeProps {

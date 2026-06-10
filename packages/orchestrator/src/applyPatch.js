@@ -28,6 +28,34 @@ const PROBLEMS = {
     patchTarget: 'src/server.js',
     port: 3003,
   },
+  'csrf-transfer': {
+    container: 'arena-csrf-transfer',
+    composeService: 'csrf-transfer',
+    attackName: 'csrf',
+    patchTarget: 'src/server.js',
+    port: 3006,
+  },
+  'hardcoded-secrets': {
+    container: 'arena-hardcoded-secrets',
+    composeService: 'hardcoded-secrets',
+    attackName: 'hardcoded-secrets',
+    patchTarget: 'src/server.js',
+    port: 3007,
+  },
+  'open-redirect': {
+    container: 'arena-open-redirect',
+    composeService: 'open-redirect',
+    attackName: 'open-redirect',
+    patchTarget: 'src/server.js',
+    port: 3008,
+  },
+  'file-upload': {
+    container: 'arena-file-upload',
+    composeService: 'file-upload',
+    attackName: 'file-upload',
+    patchTarget: 'src/server.js',
+    port: 3009,
+  },
 };
 
 async function waitForHealth(port, timeoutMs = 15000) {

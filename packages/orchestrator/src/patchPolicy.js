@@ -11,6 +11,26 @@ const PROBLEM_PATCH_POLICY = {
     maxBytes: 32 * 1024,
     maxAddedLines: 80,
   },
+  'csrf-transfer': {
+    allowedFiles: ['src/server.js'],
+    maxBytes: 32 * 1024,
+    maxAddedLines: 80,
+  },
+  'hardcoded-secrets': {
+    allowedFiles: ['src/server.js'],
+    maxBytes: 32 * 1024,
+    maxAddedLines: 80,
+  },
+  'open-redirect': {
+    allowedFiles: ['src/server.js'],
+    maxBytes: 32 * 1024,
+    maxAddedLines: 80,
+  },
+  'file-upload': {
+    allowedFiles: ['src/server.js'],
+    maxBytes: 32 * 1024,
+    maxAddedLines: 80,
+  },
 };
 
 function parseChangedFiles(patchString) {

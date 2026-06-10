@@ -3,7 +3,11 @@ export type VulnerabilityType =
   | "XSS"
   | "Authentication Bypass"
   | "Path Traversal"
-  | "Command Injection";
+  | "Command Injection"
+  | "CSRF"
+  | "Information Exposure"
+  | "Open Redirect"
+  | "Insecure File Upload";
 
 export type Difficulty = "Easy" | "Medium" | "Hard";
 export type ChallengeStatus = "available" | "locked" | "coming-soon";
@@ -53,7 +57,16 @@ export type PreviewServerStatus =
 
 // Which mock UI to render in the Step 1 preview pane. Each kind has a
 // matching <VulnerableAppPreview> rendering.
-export type PreviewKind = "login" | "comments" | "profile" | "download" | "ping";
+export type PreviewKind =
+  | "login"
+  | "comments"
+  | "profile"
+  | "download"
+  | "ping"
+  | "transfer"
+  | "dashboard"
+  | "redirect"
+  | "upload";
 
 // How to render the "live app" panel next to the editor in editPreview
 // mode. Problems with a real HTML route (xss-comments → GET /comments)

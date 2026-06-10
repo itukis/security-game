@@ -19,7 +19,7 @@ export default function HomePage() {
               SecurePatch Quest
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-8 text-zinc-300 sm:text-lg">
-                AIが生成したアプリ画面を新人ホワイトハッカーとして診断し、SQL Injection・XSS・IDOR・Path Traversal・Command Injection の5カテゴリの弱点を攻撃テストで確認し、原因コードを読んで、安全な修正案を選ぶセキュリティ学習ゲームです。
+                AIが生成したアプリ画面を新人ホワイトハッカーとして診断し、SQL Injection・XSS・IDOR・Path Traversal・Command Injection・CSRF・Information Exposure・Open Redirect・Insecure File Upload の9カテゴリの弱点を攻撃テストで確認し、原因コードを読んで、安全な修正案を選ぶセキュリティ学習ゲームです。
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -30,7 +30,7 @@ export default function HomePage() {
                 問題を始める
               </Link>
               <div className="inline-flex h-12 items-center justify-center rounded border border-zinc-700 bg-zinc-900/80 px-5 text-sm font-semibold text-zinc-300">
-                  SQLi / XSS / IDOR / Path Traversal / Command Injection の5問
+                  SQLi / XSS / IDOR / Path Traversal / Command Injection / CSRF / Information Exposure / Open Redirect / Insecure File Upload の9問
               </div>
             </div>
           </div>
