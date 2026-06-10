@@ -1,18 +1,26 @@
 "use client";
 
 import type { QuestUiStatus } from "@/components/NextActionCard";
-import { MODE_ORDER } from "@/components/challenge-playground/constants";
 import {
   getNextActionLabel,
   getStatusLabel,
 } from "@/components/challenge-playground/status";
-import { DIFFICULTY, DIFFICULTY_LABELS, type DifficultyMode } from "@/lib/difficultyConfig";
+import type { Difficulty } from "@/lib/challengeTypes";
+import {
+  DIFFICULTY_LABELS,
+  getScoreCap,
+  type DifficultyMode,
+} from "@/lib/difficultyConfig";
 
 export function DifficultySwitcher({
   mode,
+  availableModes,
+  problemDifficulty,
   onChange,
 }: {
   mode: DifficultyMode;
+  availableModes: DifficultyMode[];
+  problemDifficulty: Difficulty;
   onChange: (next: DifficultyMode) => void;
 }) {
   return (
@@ -31,8 +39,8 @@ export function DifficultySwitcher({
           aria-label="Difficulty mode"
           className="flex flex-wrap gap-2"
         >
-          {MODE_ORDER.map((m) => {
-            const settings = DIFFICULTY[m];
+          {availableModes.map((m) => {
+            const cap = getScoreCap(m, problemDifficulty);
             const active = m === mode;
             return (
               <button
@@ -51,7 +59,7 @@ export function DifficultySwitcher({
                   {DIFFICULTY_LABELS[m]}
                 </span>
                 <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                  cap {settings.scoreCap}
+                  cap {cap}
                 </span>
               </button>
             );

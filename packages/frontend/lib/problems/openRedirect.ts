@@ -139,5 +139,29 @@ export const openRedirect: ProblemContent = {
       ),
       isCorrect: false,
     },
+    {
+      id: "block-evil-substring",
+      title: "evil という文字列が含まれていたら拒否",
+      description:
+        "`/evil/i.test(redirectTo)` を 400 で弾く案です。攻撃者が任意のドメインを用意できることを思い出してください。",
+      patch: wrongPatch(
+        INITIAL_CODE,
+        "  const redirectTo = req.query.redirect || '/dashboard';\n  res.redirect(redirectTo);",
+        "  const redirectTo = req.query.redirect || '/dashboard';\n  if (typeof redirectTo === 'string' && /evil/i.test(redirectTo)) return res.status(400).send('Bad Request');\n  res.redirect(redirectTo);",
+      ),
+      isCorrect: false,
+    },
+    {
+      id: "use-302-explicitly",
+      title: "リダイレクト種別を明示する",
+      description:
+        "`res.redirect(302, redirectTo)` のように、ステータスコードを明示する案です。ステータスコードと遷移先検証は別問題であることに注意。",
+      patch: wrongPatch(
+        INITIAL_CODE,
+        "  const redirectTo = req.query.redirect || '/dashboard';\n  res.redirect(redirectTo);",
+        "  const redirectTo = req.query.redirect || '/dashboard';\n  res.redirect(302, redirectTo);",
+      ),
+      isCorrect: false,
+    },
   ],
 };

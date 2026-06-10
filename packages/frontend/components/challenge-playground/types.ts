@@ -17,7 +17,9 @@ export type PreviewApplyState = "idle" | "applying" | "applied" | "error";
 export type PlaygroundModel = {
   challenge: Challenge;
   mode: DifficultyMode;
+  availableModes: DifficultyMode[];
   difficulty: DifficultySettings;
+  scoreCap: number;
   attackState: AttackState;
   codeReviewed: boolean;
   defenseState: DefenseState;

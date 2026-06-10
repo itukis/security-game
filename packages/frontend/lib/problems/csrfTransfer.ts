@@ -171,5 +171,29 @@ export const csrfTransfer: ProblemContent = {
       ),
       isCorrect: false,
     },
+    {
+      id: "amount-cap",
+      title: "送金額の上限を低く設定する",
+      description:
+        "`amt > 100` の送金を 400 で弾く案です。少額を繰り返されたらどうなるか考えてください。",
+      patch: wrongPatch(
+        INITIAL_CODE,
+        "  if (!to || !amt || amt <= 0) return res.status(400).json({ error: 'Invalid transfer' });",
+        "  if (!to || !amt || amt <= 0) return res.status(400).json({ error: 'Invalid transfer' });\n  if (amt > 100) return res.status(400).json({ error: 'Amount too large' });",
+      ),
+      isCorrect: false,
+    },
+    {
+      id: "referer-presence",
+      title: "Referer ヘッダの有無だけを確認する",
+      description:
+        "`req.headers.referer` が空なら 403 を返す案です。攻撃者の罠ページから送られたリクエストにも Referer は付くことに注意してください。",
+      patch: wrongPatch(
+        INITIAL_CODE,
+        "app.post('/transfer', (req, res) => {\n  const { to, amount } = req.body;",
+        "app.post('/transfer', (req, res) => {\n  if (!req.headers.referer) return res.status(403).json({ error: 'Missing referer' });\n  const { to, amount } = req.body;",
+      ),
+      isCorrect: false,
+    },
   ],
 };

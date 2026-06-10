@@ -16,7 +16,12 @@ export function ChallengePlaygroundView({ state }: { state: PlaygroundState }) {
 
   return (
     <div className="mt-4 flex flex-col gap-4">
-      <DifficultySwitcher mode={mode} onChange={actions.handleModeChange} />
+      <DifficultySwitcher
+        mode={mode}
+        availableModes={model.availableModes}
+        problemDifficulty={challenge.difficulty}
+        onChange={actions.handleModeChange}
+      />
 
       <StickyMissionBar
         currentStep={currentStep}

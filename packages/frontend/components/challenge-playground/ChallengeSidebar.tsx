@@ -17,8 +17,15 @@ export function ChallengeSidebar({
   actions: PlaygroundActions;
   model: PlaygroundModel;
 }) {
-  const { challenge, currentStep, defenseState, difficulty, hasAttacked, hasSelectedPatch } =
-    model;
+  const {
+    challenge,
+    currentStep,
+    defenseState,
+    difficulty,
+    hasAttacked,
+    hasSelectedPatch,
+    scoreCap,
+  } = model;
 
   return (
     <aside className="relative z-0 flex min-w-0 flex-col gap-3 self-start">
@@ -33,7 +40,7 @@ export function ChallengeSidebar({
         defenseState={defenseState}
         score={model.score}
       />
-      <ScoreCapBadge mode={model.mode} cap={difficulty.scoreCap} />
+      <ScoreCapBadge mode={model.mode} cap={scoreCap} />
       {model.visibleHints.length > 0 ? (
         <HintsPanel
           hints={model.visibleHints}
