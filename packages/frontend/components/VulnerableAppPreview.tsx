@@ -37,12 +37,6 @@ export function VulnerableAppPreview({
     ? challenge.previewKind
     : "login";
 
-  // Field-targeted reference payload. Per problem we tell the user WHICH
-  // input the payload goes into — the static "参考ペイロード" block alone
-  // was leading users to paste into the wrong field (e.g. password instead
-  // of username for SQLi).
-  const referencePayload = REFERENCE_PAYLOAD_BY_KIND[kind];
-
   return (
     <div className="relative min-w-0 rounded-lg border border-cyan-300/20 bg-zinc-950 p-4">
       <PreviewStatusBadge status={previewStatus} />
@@ -92,15 +86,6 @@ export function VulnerableAppPreview({
         {kind === "ping" ? (
           <PingPreview onExploitDetected={onExploitDetected} />
         ) : null}
-
-      <div className="mt-4 rounded border border-rose-300/20 bg-rose-300/10 p-3">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-rose-100">
-          {referencePayload.label}
-        </p>
-        <p className="mt-2 break-all font-mono text-sm text-rose-100">
-          {referencePayload.value}
-        </p>
-      </div>
     </div>
   );
 }
@@ -161,32 +146,6 @@ function isPreviewKind(value: unknown): value is PreviewKind {
   );
 }
 
-const REFERENCE_PAYLOAD_BY_KIND: Record<
-  PreviewKind,
-  { label: string; value: string }
-> = {
-  login: {
-    label: "参考ペイロード（USERNAME 欄に入力）",
-    value: SQLI_PAYLOAD,
-  },
-  comments: {
-    label: "参考ペイロード（text 欄に入力）",
-    value: "<script>alert('xss')</script>",
-  },
-  profile: {
-    label: "参考の試し方（Target user ID 欄を書き換え）",
-    value: "user-2 などの他人 ID を入れる",
-  },
-  download: {
-    label: "参考ペイロード（ファイル名に指定）",
-    value: "../../secret/flag.txt",
-  },
-  ping: {
-    label: "参考ペイロード（ホスト欄に入力）",
-    value: "127.0.0.1; cat /etc/passwd",
-  },
-};
-
 function ResultBanner({ tone, message }: { tone: Tone; message: string }) {
   const toneClass =
     tone === "danger"
@@ -237,28 +196,6 @@ function LoginPreview({
       message: string;
     detail?: string;
   } | null>(null);
-  const usernameInputRef = useRef<HTMLInputElement>(null);
-  const passwordInputRef = useRef<HTMLInputElement>(null);
-
-  // Force the DOM value back in sync with React state — browser autofill
-  // can write to the DOM directly without firing onChange.
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (usernameInputRef.current && usernameInputRef.current.value !== username) {
-        usernameInputRef.current.value = username;
-      }
-    }, 100);
-    return () => clearInterval(interval);
-  }, [username]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (passwordInputRef.current && passwordInputRef.current.value !== password) {
-        passwordInputRef.current.value = password;
-      }
-    }, 100);
-    return () => clearInterval(interval);
-  }, [password]);
 
   async function performLogin(creds: { username: string; password: string }) {
     setLoading(true);
@@ -347,10 +284,14 @@ function LoginPreview({
         <label className="block text-xs font-bold uppercase tracking-[0.16em] text-zinc-600">
           Username / Email <span className="text-rose-700">← 注入対象</span>
           <input
-            ref={usernameInputRef}
             className="mt-2 h-11 w-full rounded border border-zinc-300 bg-white px-3 font-mono text-sm text-zinc-800"
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value;
+              const inputType = (e.nativeEvent as InputEvent).inputType;
+              if (inputType !== "insertFromPaste" && v.includes("(Header:")) return;
+              setUsername(v);
+            }}
             placeholder="ここにペイロードを入力してみよう"
             autoComplete="one-time-code"
             name={`field-${fieldId}-username`}
@@ -361,11 +302,15 @@ function LoginPreview({
         <label className="mt-3 block text-xs font-bold uppercase tracking-[0.16em] text-zinc-600">
           Password
           <input
-            ref={passwordInputRef}
             className="mt-2 h-11 w-full rounded border border-zinc-300 bg-white px-3 font-mono text-sm text-zinc-800"
             type="text"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value;
+              const inputType = (e.nativeEvent as InputEvent).inputType;
+              if (inputType !== "insertFromPaste" && v.includes("(Header:")) return;
+              setPassword(v);
+            }}
             placeholder="任意の値で OK"
             autoComplete="one-time-code"
             name={`field-${fieldId}-password`}
@@ -416,18 +361,6 @@ function CommentsPreview({
     detail?: string;
   } | null>(null);
   const [iframeKey, setIframeKey] = useState(0);
-  const authorInputRef = useRef<HTMLInputElement>(null);
-
-  // Force the DOM value back in sync with React state — browser autofill
-  // can write to the DOM directly without firing onChange.
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (authorInputRef.current && authorInputRef.current.value !== author) {
-        authorInputRef.current.value = author;
-      }
-    }, 100);
-    return () => clearInterval(interval);
-  }, [author]);
 
   const containsScript = useCallback((s: string) => /<script\b/i.test(s), []);
 
@@ -533,10 +466,14 @@ function CommentsPreview({
         <label className="block text-xs font-bold uppercase tracking-[0.16em] text-zinc-600">
           author
           <input
-            ref={authorInputRef}
             className="mt-2 h-10 w-full rounded border border-zinc-300 bg-white px-3 font-mono text-sm text-zinc-800"
             value={author}
-            onChange={(e) => setAuthor(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value;
+              const inputType = (e.nativeEvent as InputEvent).inputType;
+              if (inputType !== "insertFromPaste" && v.includes("(Header:")) return;
+              setAuthor(v);
+            }}
             placeholder="表示名"
             autoComplete="one-time-code"
             name={`field-${fieldId}-author`}
@@ -702,18 +639,6 @@ function PingPreview({
 }) {
   const fieldId = useId();
   const [host, setHost] = useState("");
-  const hostInputRef = useRef<HTMLInputElement>(null);
-
-  // Force the DOM value back in sync with React state — browser autofill
-  // can write to the DOM directly without firing onChange.
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (hostInputRef.current && hostInputRef.current.value !== host) {
-        hostInputRef.current.value = host;
-      }
-    }, 100);
-    return () => clearInterval(interval);
-  }, [host]);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -746,10 +671,14 @@ function PingPreview({
       <label className="mt-4 block text-xs font-bold uppercase tracking-[0.16em] text-zinc-600">
         ホスト
         <input
-          ref={hostInputRef}
           className="mt-2 h-11 w-full rounded border border-zinc-300 bg-white px-3 text-sm font-mono text-zinc-800"
           value={host}
-          onChange={(e) => setHost(e.target.value)}
+          onChange={(e) => {
+            const v = e.target.value;
+            const inputType = (e.nativeEvent as InputEvent).inputType;
+            if (inputType !== "insertFromPaste" && v.includes("(Header:")) return;
+            setHost(v);
+          }}
           placeholder="ここにペイロードを入力してみよう"
           autoComplete="one-time-code"
           name={`field-${fieldId}-host`}
@@ -804,18 +733,6 @@ function ProfilePreview({
     body?: string;
   } | null>(null);
   const triggeredRef = useRef(false);
-  const targetIdInputRef = useRef<HTMLInputElement>(null);
-
-  // Force the DOM value back in sync with React state — browser autofill
-  // can write to the DOM directly without firing onChange.
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (targetIdInputRef.current && targetIdInputRef.current.value !== targetId) {
-        targetIdInputRef.current.value = targetId;
-      }
-    }, 100);
-    return () => clearInterval(interval);
-  }, [targetId]);
 
   // The "logged-in" user is fixed in this demo. The vulnerability is that
   // the server doesn't check this against the URL :id.
@@ -946,10 +863,14 @@ function ProfilePreview({
       <label className="block text-xs font-bold uppercase tracking-[0.16em] text-zinc-600">
         Target user ID <span className="text-rose-700">← URL の :id</span>
         <input
-          ref={targetIdInputRef}
           className="mt-2 h-10 w-full rounded border border-zinc-300 bg-white px-3 font-mono text-sm text-zinc-800"
           value={targetId}
-          onChange={(e) => setTargetId(e.target.value)}
+          onChange={(e) => {
+            const v = e.target.value;
+            const inputType = (e.nativeEvent as InputEvent).inputType;
+            if (inputType !== "insertFromPaste" && v.includes("(Header:")) return;
+            setTargetId(v);
+          }}
           placeholder="ここにユーザーIDを入力してみよう"
           autoComplete="one-time-code"
           name={`field-${fieldId}-target`}

@@ -547,7 +547,7 @@ export const problemContent: Record<ProblemId, ProblemContent> = {
       "user-1 としてログインしたまま、URL の :id を user-2 / user-3 に書き換えて、本来見えないはずの他人のプロフィールを読み出す。",
     causeSummary:
       "「誰がリクエストしているか(req.userId)」と「どの ID にアクセスしようとしているか(req.params.id)」を比べずに、URL の ID をそのまま信用していることが原因です。本人かどうかを確かめてから返す方向の修正を目指します。",
-    attackPayload: "GET /profile/user-2  (Header: X-User-Id: user-1)",
+    attackPayload: "user-2",
     attackVerifiedMessage:
       "user-1 として user-2 のプロフィール(secret付き)が読み出されました",
     attackVerifyDisclaimer:
