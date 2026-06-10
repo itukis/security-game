@@ -1,30 +1,31 @@
-export type DifficultyMode = "select" | "editPreview" | "editOnly";
+export type DifficultyMode = "editPreview" | "editOnly";
 
 export interface DifficultySettings {
-  patchInput: "options" | "editor";
+  patchInput: "editor";
   showSite: boolean;
   hints: "all" | "onDemand" | "none";
   scoreCap: number;
+  scoreMode: DifficultyMode;
 }
 
 export const DIFFICULTY: Record<DifficultyMode, DifficultySettings> = {
-  select: { patchInput: "options", showSite: true, hints: "all", scoreCap: 60 },
   editPreview: {
     patchInput: "editor",
     showSite: true,
     hints: "onDemand",
-    scoreCap: 85,
+    scoreCap: 200,
+    scoreMode: "editPreview",
   },
   editOnly: {
     patchInput: "editor",
     showSite: false,
     hints: "none",
-    scoreCap: 100,
+    scoreCap: 2500,
+    scoreMode: "editOnly",
   },
 };
 
 export const DIFFICULTY_LABELS: Record<DifficultyMode, string> = {
-  select: "選択式",
   editPreview: "コード+プレビュー",
   editOnly: "コードのみ",
 };

@@ -15,6 +15,9 @@ const PORT_BY_PROBLEM: Record<string, number> = {
   "hardcoded-secrets": 3007,
   "open-redirect": 3008,
   "file-upload": 3009,
+  "review-support-portal": 3010,
+  "review-account-workflow": 3011,
+  "review-file-workbench": 3012,
 };
 
 const FORWARDED_REQUEST_HEADERS = new Set([

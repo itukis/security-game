@@ -56,6 +56,27 @@ const PROBLEMS = {
     patchTarget: 'src/server.js',
     port: 3009,
   },
+  'review-support-portal': {
+    container: 'arena-review-support-portal',
+    composeService: 'review-support-portal',
+    attackName: 'review-support-portal',
+    patchTarget: 'src/server.js',
+    port: 3010,
+  },
+  'review-account-workflow': {
+    container: 'arena-review-account-workflow',
+    composeService: 'review-account-workflow',
+    attackName: 'review-account-workflow',
+    patchTarget: 'src/server.js',
+    port: 3011,
+  },
+  'review-file-workbench': {
+    container: 'arena-review-file-workbench',
+    composeService: 'review-file-workbench',
+    attackName: 'review-file-workbench',
+    patchTarget: 'src/server.js',
+    port: 3012,
+  },
 };
 
 async function waitForHealth(port, timeoutMs = 15000) {

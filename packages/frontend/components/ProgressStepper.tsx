@@ -17,8 +17,8 @@ const defaultSteps = [
   },
   {
     id: 3,
-    title: "修正案を選択",
-    description: "安全な対策を選ぶ",
+    title: "コードを修正",
+    description: "安全なコードに直す",
   },
   {
     id: 4,

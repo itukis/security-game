@@ -7,7 +7,8 @@ export type VulnerabilityType =
   | "CSRF"
   | "Information Exposure"
   | "Open Redirect"
-  | "Insecure File Upload";
+  | "Insecure File Upload"
+  | "Composite Review";
 
 export type Difficulty = "Easy" | "Medium" | "Hard";
 export type ChallengeStatus = "available" | "locked" | "coming-soon";
@@ -66,7 +67,10 @@ export type PreviewKind =
   | "transfer"
   | "dashboard"
   | "redirect"
-  | "upload";
+  | "upload"
+  | "supportPortal"
+  | "accountWorkflow"
+  | "fileWorkbench";
 
 // How to render the "live app" panel next to the editor in editPreview
 // mode. Problems with a real HTML route (xss-comments → GET /comments)

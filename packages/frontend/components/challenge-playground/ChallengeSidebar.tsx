@@ -207,9 +207,9 @@ function StepSummaryList({
       <StepSummary
         active={currentStep === 3}
         complete={hasSelectedPatch}
-        description={selectedPatchTitle ?? "修正案を選択してください"}
+        description={selectedPatchTitle ?? "コードを修正してください"}
         locked={!codeReviewed}
-        title="Step 3：修正案"
+        title="Step 3：コード修正"
       />
       <StepSummary
         active={currentStep === 4}

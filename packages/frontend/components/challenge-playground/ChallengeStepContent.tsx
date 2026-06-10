@@ -3,7 +3,6 @@
 import { AttackPanel } from "@/components/AttackPanel";
 import { CodeEditor } from "@/components/CodeEditor";
 import { CodeViewer } from "@/components/CodeViewer";
-import { PatchSelector } from "@/components/PatchSelector";
 import { ResultPanel } from "@/components/ResultPanel";
 import { VulnerableAppPreview } from "@/components/VulnerableAppPreview";
 import { ActiveStepHeader } from "@/components/challenge-playground/ChallengeChrome";
@@ -26,7 +25,7 @@ export function ChallengeStepContent({
   actions: PlaygroundActions;
   model: PlaygroundModel;
 }) {
-  const { challenge, currentStep, isEditorMode } = model;
+  const { challenge, currentStep } = model;
 
   return (
     <>
@@ -53,12 +52,10 @@ export function ChallengeStepContent({
       {currentStep === 3 ? (
         <ActiveStepHeader
           eyebrow="Step 3"
-          title={isEditorMode ? "コードを修正" : "修正案を選択"}
+          title="コードを修正"
           description={
-            isEditorMode
-              ? "脆弱なコードを直接編集して、原因を取り除きましょう。"
-              : (challenge.stepCopy?.step3Description ??
-                "原因に対する修正案を選びましょう。")
+            challenge.stepCopy?.step3Description ??
+            "脆弱なコードを直接編集して、原因を取り除きましょう。"
           }
         />
       ) : null}
@@ -68,7 +65,7 @@ export function ChallengeStepContent({
           title="再テスト結果"
           description={
             challenge.stepCopy?.step4Description ??
-            "選んだ修正案で脆弱性を防げるか、実際の攻撃テストで確認します。"
+            "編集したコードで脆弱性を防げるか、実際の攻撃テストで確認します。"
           }
         />
       ) : null}
@@ -176,28 +173,13 @@ function PatchStep({
   actions: PlaygroundActions;
   model: PlaygroundModel;
 }) {
-  const { challenge } = model;
-
   return (
     <div className="grid min-w-0 gap-4">
-      {model.isEditorMode ? (
-        <EditorPatchArea model={model} actions={actions} />
-      ) : (
-        <PatchSelector
-          disabled={!model.canSelectPatch}
-          disabledReason={
-            model.canSelectPatch ? null : "まず攻撃テストを実行してください。"
-          }
-          patchOptions={challenge.patchOptions}
-          selectedPatchId={model.selectedPatchId}
-          onSelectPatch={actions.handleSelectPatch}
-        />
-      )}
+      <EditorPatchArea model={model} actions={actions} />
 
       <VerifyTrigger
         canRetest={model.canRetest}
         disabledReason={model.retestDisabledReason}
-        isEditorMode={model.isEditorMode}
         onSubmit={actions.handleSubmitPatch}
       />
     </div>
@@ -223,8 +205,8 @@ function EditorPatchArea({
     >
       <div className="flex min-w-0 flex-col gap-2">
         <p className="text-xs leading-5 text-zinc-500">
-          脆弱な箇所を見つけて、該当行だけを修正してください。
-          コード全体を置き換えると正しく検証できません。
+          脆弱な箇所を見つけて、必要な範囲を直接修正してください。
+          差分は src/server.js へのパッチとして検証されます。
         </p>
         <CodeEditor
           value={model.editorCode}
@@ -274,7 +256,6 @@ function ResultStep({
         defenseState={model.defenseState}
         disabledReason={model.retestDisabledReason}
         errorMessage={model.verifyError}
-        isEditorMode={model.isEditorMode}
         loadingStep={model.loadingStep}
         onBackToEditor={actions.handleBackToEditor}
         onReset={actions.handleResetMission}

@@ -12,6 +12,9 @@ import { csrfTransfer } from "./problems/csrfTransfer";
 import { hardcodedSecrets } from "./problems/hardcodedSecrets";
 import { openRedirect } from "./problems/openRedirect";
 import { fileUpload } from "./problems/fileUpload";
+import { reviewSupportPortal } from "./problems/reviewSupportPortal";
+import { reviewAccountWorkflow } from "./problems/reviewAccountWorkflow";
+import { reviewFileWorkbench } from "./problems/reviewFileWorkbench";
 import type { ProblemContent, ProblemId } from "./problems/_shared";
 
 export type { ProblemId, ProblemContent } from "./problems/_shared";
@@ -26,6 +29,9 @@ export const problemContent: Record<ProblemId, ProblemContent> = {
   "hardcoded-secrets": hardcodedSecrets,
   "open-redirect": openRedirect,
   "file-upload": fileUpload,
+  "review-support-portal": reviewSupportPortal,
+  "review-account-workflow": reviewAccountWorkflow,
+  "review-file-workbench": reviewFileWorkbench,
 };
 
 export const problemOrder: ProblemId[] = [
@@ -38,6 +44,9 @@ export const problemOrder: ProblemId[] = [
   "hardcoded-secrets",
   "open-redirect",
   "file-upload",
+  "review-support-portal",
+  "review-account-workflow",
+  "review-file-workbench",
 ];
 
 export function getProblemContent(id: string): ProblemContent | undefined {

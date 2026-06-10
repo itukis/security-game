@@ -5,6 +5,9 @@ const { runCsrfAttack } = require('./attacks/csrf');
 const { runHardcodedSecretsAttack } = require('./attacks/hardcodedSecrets');
 const { runOpenRedirectAttack } = require('./attacks/openRedirect');
 const { runFileUploadAttack } = require('./attacks/fileUpload');
+const { runSupportPortalReviewAttack } = require('./attacks/reviewSupportPortal');
+const { runAccountWorkflowReviewAttack } = require('./attacks/reviewAccountWorkflow');
+const { runFileWorkbenchReviewAttack } = require('./attacks/reviewFileWorkbench');
 
 const ATTACKS = {
   sqli: runSqliAttack,
@@ -14,6 +17,9 @@ const ATTACKS = {
   'hardcoded-secrets': runHardcodedSecretsAttack,
   'open-redirect': runOpenRedirectAttack,
   'file-upload': runFileUploadAttack,
+  'review-support-portal': runSupportPortalReviewAttack,
+  'review-account-workflow': runAccountWorkflowReviewAttack,
+  'review-file-workbench': runFileWorkbenchReviewAttack,
 };
 
 async function runAttack({ attackName, baseUrl }) {

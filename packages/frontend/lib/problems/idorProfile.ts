@@ -66,7 +66,7 @@ export const idorProfile: ProblemContent = {
   shortDescription:
     "プロフィールAPIが URL の ID をそのまま信用してしまう穴を、認可チェックで塞ぎます。",
   scenario:
-    "プロフィール参照APIは、URL の :id をキーにプロフィールを返すだけで、リクエストしている本人が本当にそのプロフィールの持ち主かを確認していない。任意のログイン済みユーザーが、他人の ID を URL に入れるだけで他人の情報(秘密のメモなど)を読めてしまう。攻撃テストで確認し、リクエスト元と対象を一致させる認可チェックを入れる方向の修正を選ぶ。",
+    "プロフィール参照APIは、URL の :id をキーにプロフィールを返すだけで、リクエストしている本人が本当にそのプロフィールの持ち主かを確認していない。任意のログイン済みユーザーが、他人の ID を URL に入れるだけで他人の情報(秘密のメモなど)を読めてしまう。攻撃テストで確認し、リクエスト元と対象を一致させる認可チェックをコードへ入れる。",
   vulnerableAppTitle: "Profile API / internal-0.4",
   targetEndpoint: "GET /profile/:id",
   learnSummary:
@@ -92,7 +92,7 @@ export const idorProfile: ProblemContent = {
     step2Description:
       "プロフィール取得ハンドラの中で、req.userId と req.params.id を比べていない箇所を探します。",
     step3Description:
-      "ハンドラの先頭で「本人か?」を確かめ、違えば 403 を返す方向の修正案を選びましょう。",
+      "ハンドラの先頭で「本人か?」を確かめ、違えば 403 を返す方向へコードを修正しましょう。",
     step4Description:
       "他人の ID へのアクセスが 403 で弾かれるか、疑似判定で確認します。",
     focusBoxTitle: "見るポイント",
@@ -101,7 +101,7 @@ export const idorProfile: ProblemContent = {
     nextActionAttacked:
       "次にコードを読み、本人確認(認可チェック)が抜けている箇所を確認しましょう。",
     nextActionCodeReviewed:
-      "req.userId と req.params.id を見比べていないことを確認できました。次は修正案を選びましょう。",
+      "req.userId と req.params.id を見比べていないことを確認できました。次はコードを修正しましょう。",
     stepperStep2Subtitle: "認可チェックの抜けを見る",
   },
   progress: {
@@ -118,9 +118,9 @@ export const idorProfile: ProblemContent = {
   patchOptions: [
     {
       id: "log-access",
-      title: "アクセスログを出す",
+      title: "プロフィール参照をログに残す",
       description:
-        "誰が誰のプロフィールを見たか記録するだけで、覗き見そのものは止められません。",
+        "`console.log(req.userId, '->', req.params.id)` を追加し、誰がどのIDを読んだか追跡する案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "app.get('/profile/:id', (req, res) => {\n  const profile = PROFILES[req.params.id];",
@@ -130,17 +130,17 @@ export const idorProfile: ProblemContent = {
     },
     {
       id: "authz-check",
-      title: "ハンドラ先頭で本人確認して 403 を返す",
+      title: "URLのIDとリクエスト元IDを比べる",
       description:
-        "req.userId と req.params.id が違うときは、プロフィールを引く前に 403 Forbidden を返します。",
+        "`if (req.userId !== req.params.id) return res.status(403)...` を、プロフィール取得前に置く案です。",
       patch: SOLUTION_PATCH,
       isCorrect: true,
     },
     {
       id: "hide-secret-field",
-      title: "secret フィールドだけ返さない",
+      title: "返すJSONから一部フィールドを外す",
       description:
-        "一部の項目を隠すだけで、他人の名前やメールは依然として取れてしまいます。",
+        "`const { secret, ...safe } = profile` のように、レスポンス項目を減らす案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "  res.json(profile);",

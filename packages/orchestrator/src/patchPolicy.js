@@ -31,6 +31,21 @@ const PROBLEM_PATCH_POLICY = {
     maxBytes: 32 * 1024,
     maxAddedLines: 80,
   },
+  'review-support-portal': {
+    allowedFiles: ['src/server.js'],
+    maxBytes: 48 * 1024,
+    maxAddedLines: 140,
+  },
+  'review-account-workflow': {
+    allowedFiles: ['src/server.js'],
+    maxBytes: 48 * 1024,
+    maxAddedLines: 160,
+  },
+  'review-file-workbench': {
+    allowedFiles: ['src/server.js'],
+    maxBytes: 48 * 1024,
+    maxAddedLines: 160,
+  },
 };
 
 function parseChangedFiles(patchString) {

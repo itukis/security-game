@@ -72,11 +72,11 @@ export const hardcodedSecrets: ProblemContent = {
   vulnerability: "Information Exposure",
   title: "ダッシュボードから管理者キーを取り除け",
   shortDescription:
-    "管理者APIキーをHTMLに直接埋め込んでいるダッシュボードを診断し、サーバー側で隠す修正を選びます。",
+    "管理者APIキーをHTMLに直接埋め込んでいるダッシュボードを診断し、サーバー側で隠すコードへ修正します。",
   scenario:
     "管理ダッシュボードは、内部APIを呼ぶための管理者キーをそのままHTMLに埋め込んでブラウザへ返している。" +
     "DevTools を開いた誰でもキーを読み取れ、その後は管理者として /api/data を直接呼べてしまう。" +
-    "攻撃テストで HTML 内にキーが露出していることを確認し、サーバー側プロキシで隠す方向の修正を選ぼう。",
+    "攻撃テストで HTML 内にキーが露出していることを確認し、サーバー側プロキシで隠す方向へコードを修正しよう。",
   vulnerableAppTitle: "Admin Dashboard / mvp-0.3",
   targetEndpoint: "GET /",
   learnSummary:
@@ -103,7 +103,7 @@ export const hardcodedSecrets: ProblemContent = {
     step2Description:
       "GET / のテンプレート文字列に API_KEY が直接埋め込まれている箇所を探します。",
     step3Description:
-      "クライアントには鍵を渡さず、サーバー側プロキシ越しに公開フィールドだけ返す方向の修正案を選びましょう。",
+      "クライアントには鍵を渡さず、サーバー側プロキシ越しに公開フィールドだけ返す方向へコードを修正しましょう。",
     step4Description:
       "HTMLソースから API_KEY 関連の文字列が消えるか、再テストで確認します。",
     focusBoxTitle: "見るポイント",
@@ -112,7 +112,7 @@ export const hardcodedSecrets: ProblemContent = {
     nextActionAttacked:
       "次にコードを読み、HTMLに直接埋め込まれている API_KEY を確認しましょう。",
     nextActionCodeReviewed:
-      "HTMLにキーが埋め込まれている箇所を確認できました。次は修正案を選びましょう。",
+      "HTMLにキーが埋め込まれている箇所を確認できました。次はコードを修正しましょう。",
     stepperStep2Subtitle: "クライアントに何が渡っているか見る",
   },
   progress: {
@@ -131,9 +131,9 @@ export const hardcodedSecrets: ProblemContent = {
   patchOptions: [
     {
       id: "rename-constant",
-      title: "API_KEY の変数名を分かりにくく変える",
+      title: "クライアント側の変数名を短くする",
       description:
-        "変数名を変えてもHTMLソース内の文字列としてキーは見えるため、難読化にもなりません。",
+        "`const _k = 'sk-...'` のように、ブラウザへ渡るJavaScript内の名前だけを変える案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "    const API_KEY = '${ADMIN_API_KEY}';",
@@ -143,17 +143,17 @@ export const hardcodedSecrets: ProblemContent = {
     },
     {
       id: "server-side-proxy",
-      title: "サーバー側プロキシで鍵を隠す",
+      title: "ブラウザから鍵を直接見せない経路にする",
       description:
-        "クライアントには /api/data-proxy だけを叩かせ、内部APIの呼び出しと鍵の管理はサーバー側で完結させる、推奨される修正です。",
+        "`fetch('/api/data-proxy')` へ切り替え、内部APIキーを使う処理をサーバー側のハンドラへ移す案です。",
       patch: SOLUTION_PATCH,
       isCorrect: true,
     },
     {
       id: "comment-out-key",
-      title: "HTMLにコメントとして注意書きを入れる",
+      title: "鍵の近くにTODOコメントを足す",
       description:
-        "コメントが増えるだけで、キーが埋め込まれている事実は変わりません。",
+        "`// TODO: 本番では環境変数化する` のように、将来の修正メモをコードへ残す案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "    const API_KEY = '${ADMIN_API_KEY}';",

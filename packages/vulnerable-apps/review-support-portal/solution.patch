@@ -1,0 +1,45 @@
+--- a/src/server.js
++++ b/src/server.js
+@@ -27,8 +27,8 @@
+     return res.status(400).json({ success: false, error: 'Missing credentials' });
+   }
+ 
+-  const sql = `SELECT * FROM agents WHERE email = '${email}' AND password = '${password}'`;
+-  const agent = db.prepare(sql).get();
++  const stmt = db.prepare('SELECT * FROM agents WHERE email = ? AND password = ?');
++  const agent = stmt.get(email, password);
+   if (!agent) return res.json({ success: false });
+   res.json({ success: true, agent: { id: agent.id, email: agent.email, name: agent.name } });
+ });
+@@ -43,13 +43,17 @@
+   res.json({ ok: true, id: comment.id });
+ });
+ 
++function escapeHtml(value) {
++  return String(value).replace(/[&<>\"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;' }[c]));
++}
++
+ // VULNERABLE: comments are rendered into HTML without escaping.
+ app.get('/tickets/:id', (req, res) => {
+   const ticket = db.prepare('SELECT * FROM tickets WHERE id = ?').get(req.params.id);
+   if (!ticket) return res.status(404).send('Ticket not found');
+   const rendered = comments
+     .filter((comment) => comment.ticketId === req.params.id)
+-    .map((comment) => `<li><b>${comment.author}</b>: ${comment.body}</li>`)
++    .map((comment) => `<li><b>${escapeHtml(comment.author)}</b>: ${escapeHtml(comment.body)}</li>`)
+     .join('\n');
+   res.setHeader('Content-Type', 'text/html');
+   res.send(`<!doctype html><html><body><h1>${ticket.title}</h1><ul>${rendered}</ul></body></html>`);
+@@ -57,7 +61,11 @@
+ 
+ // VULNERABLE: any absolute URL can be used as a post-login redirect.
+ app.get('/handoff', (req, res) => {
+-  const next = req.query.next || '/tickets/100';
++  const raw = req.query.next || '/tickets/100';
++  const next = typeof raw === 'string' ? raw : '/tickets/100';
++  if (!next.startsWith('/') || next.startsWith('//')) {
++    return res.status(400).send('Bad Request');
++  }
+   res.redirect(next);
+ });
+ 

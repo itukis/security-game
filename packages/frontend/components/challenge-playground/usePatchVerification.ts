@@ -63,12 +63,12 @@ export function usePatchVerification({
 
     try {
       const [result] = await Promise.all([
-        verifyPatch(challengeId, patchString),
+        verifyPatch(challengeId, patchString, difficulty.scoreMode),
         wait(1200),
       ]);
       setVerifyResult(result);
       setDefenseState(result.passed ? "success" : "failure");
-      setScore(Math.min(difficulty.scoreCap, result.passed ? 100 : 35));
+      setScore(result.passed ? difficulty.scoreCap : Math.min(difficulty.scoreCap, 35));
       if (result.passed) {
         setCompletedAt(Date.now());
         toast.success("問題をクリアしました！");

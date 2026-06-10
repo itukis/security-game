@@ -7,6 +7,11 @@ import { LoginPreview } from "@/components/preview/LoginPreview";
 import { PingPreview } from "@/components/preview/PingPreview";
 import { ProfilePreview } from "@/components/preview/ProfilePreview";
 import { RedirectPreview } from "@/components/preview/RedirectPreview";
+import {
+  AccountWorkflowPreview,
+  FileWorkbenchPreview,
+  SupportPortalPreview,
+} from "@/components/preview/ReviewPreviews";
 import { TransferPreview } from "@/components/preview/TransferPreview";
 import { UploadPreview } from "@/components/preview/UploadPreview";
 import {
@@ -116,6 +121,30 @@ export function VulnerableAppPreview({
 
       {kind === "upload" ? (
         <UploadPreview
+          problemId={challenge.id}
+          onExploitDetected={onExploitDetected}
+          autoTestNonce={autoTestNonce}
+        />
+      ) : null}
+
+      {kind === "supportPortal" ? (
+        <SupportPortalPreview
+          problemId={challenge.id}
+          onExploitDetected={onExploitDetected}
+          autoTestNonce={autoTestNonce}
+        />
+      ) : null}
+
+      {kind === "accountWorkflow" ? (
+        <AccountWorkflowPreview
+          problemId={challenge.id}
+          onExploitDetected={onExploitDetected}
+          autoTestNonce={autoTestNonce}
+        />
+      ) : null}
+
+      {kind === "fileWorkbench" ? (
+        <FileWorkbenchPreview
           problemId={challenge.id}
           onExploitDetected={onExploitDetected}
           autoTestNonce={autoTestNonce}

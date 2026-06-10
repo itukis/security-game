@@ -92,9 +92,9 @@ export const xssComments: ProblemContent = {
   vulnerability: "XSS",
   title: "コメント掲示板から script を追い出せ",
   shortDescription:
-    "コメント本文を直接HTMLへ流し込んでいる掲示板を診断し、<script> が動かない修正を選びます。",
+    "コメント本文を直接HTMLへ流し込んでいる掲示板を診断し、<script> が動かないコードへ修正します。",
   scenario:
-    "コメント掲示板アプリは投稿されたテキストをそのままHTMLに埋め込んで表示している。攻撃者が <script> や onerror などを混ぜたコメントを投稿すると、閲覧した別のユーザーのブラウザでスクリプトが動いてしまう。攻撃テストで動作を確認し、出力時に正しくエスケープする修正を選ぶ。",
+    "コメント掲示板アプリは投稿されたテキストをそのままHTMLに埋め込んで表示している。攻撃者が <script> や onerror などを混ぜたコメントを投稿すると、閲覧した別のユーザーのブラウザでスクリプトが動いてしまう。攻撃テストで動作を確認し、出力時に正しくエスケープするコードへ修正する。",
   vulnerableAppTitle: "Comment Board / mvp-0.2",
   targetEndpoint: "GET /comments",
   learnSummary:
@@ -120,7 +120,7 @@ export const xssComments: ProblemContent = {
     step2Description:
       "コメント描画部分で、ユーザー入力がエスケープされずにHTML文字列に結合されている箇所を探します。",
     step3Description:
-      "出力時にHTMLエスケープを挟む方向の修正案を選びましょう。",
+      "出力時にHTMLエスケープを挟む方向へコードを修正しましょう。",
     step4Description:
       "修正後のレスポンスに、エスケープされた形(`&lt;script&gt;`など)で出るか、疑似判定で確認します。",
     focusBoxTitle: "見るポイント",
@@ -129,7 +129,7 @@ export const xssComments: ProblemContent = {
     nextActionAttacked:
       "次にコードを読み、ユーザー入力がHTML文字列に直接差し込まれている箇所を確認しましょう。",
     nextActionCodeReviewed:
-      "コメントの出力時にエスケープされていない箇所を確認できました。次は修正案を選びましょう。",
+      "コメントの出力時にエスケープされていない箇所を確認できました。次はコードを修正しましょう。",
     stepperStep2Subtitle: "HTMLへの埋め込み方を見る",
   },
   progress: {
@@ -146,9 +146,9 @@ export const xssComments: ProblemContent = {
   patchOptions: [
     {
       id: "regex-strip-script",
-      title: "<script> タグだけ正規表現で削る",
+      title: "<script> 形式だけを置換する",
       description:
-        "<script> だけは消えますが、onerror= や onclick= などの属性経由の攻撃が残ります。",
+        "`String(text).replace(/<script...>/gi, '')` のように、特定タグだけを消す案です。別のHTML表現も想定して比べてください。",
       patch: wrongPatch(
         INITIAL_CODE,
         "    .map((c) => `<div class=\"comment\"><b>${c.author}</b>: ${c.text}</div>`)",
@@ -158,17 +158,17 @@ export const xssComments: ProblemContent = {
     },
     {
       id: "escape-html",
-      title: "出力時にHTMLエスケープする",
+      title: "表示直前にHTML用の文字へ変換する",
       description:
-        "& < > \" ' の5文字をエンティティへ変換するヘルパーを通し、author と text の両方をエスケープします。",
+        "`escapeHtml(c.author)` と `escapeHtml(c.text)` のように、HTMLへ差し込む直前で文字を変換する案です。",
       patch: SOLUTION_PATCH,
       isCorrect: true,
     },
     {
       id: "content-type-plain",
-      title: "レスポンスを text/plain にする",
+      title: "レスポンス種別をテキストに変える",
       description:
-        "見た目は安全に見えますが、HTML表示を期待する画面では使えず、本質的な原因は残ります。",
+        "`res.setHeader('Content-Type', 'text/plain')` のように、返す形式だけを変更する案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "  res.setHeader('Content-Type', 'text/html');",

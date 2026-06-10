@@ -56,7 +56,7 @@ export function getStatusLabel(status: QuestUiStatus) {
     idle: "未開始",
     attacked: "攻撃済み",
     codeReviewed: "原因確認済み",
-    patchSelected: "修正案選択済み",
+    patchSelected: "コード修正済み",
     verifying: "検証中",
     passed: "防御成功",
     failed: "防御失敗",
@@ -69,11 +69,11 @@ export function getNextActionLabel(status: QuestUiStatus) {
   const labels: Record<QuestUiStatus, string> = {
     idle: "攻撃テストを実行",
     attacked: "原因コードを確認する",
-    codeReviewed: "修正案を選択",
+    codeReviewed: "コードを修正",
     patchSelected: "修正後に再テストする",
     verifying: "検証完了を待つ",
     passed: "結果と解説を確認",
-    failed: "別の修正案を試す",
+    failed: "コードを直す",
   };
 
   return labels[status];
@@ -84,5 +84,5 @@ export function getResultSummary(defenseState: DefenseState) {
   if (defenseState === "failure") return "防御失敗";
   if (defenseState === "error") return "APIエラー";
   if (defenseState === "checking") return "検証中";
-  return "修正案選択後に実行";
+  return "コード修正後に実行";
 }

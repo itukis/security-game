@@ -125,6 +125,60 @@ services:
           memory: 256m
           cpus: "0.5"
 
+  review-support-portal:
+    build:
+      context: ./packages/vulnerable-apps/review-support-portal
+    container_name: arena-review-support-portal
+    ports:
+      - "3010:3000"
+    networks:
+      - vuln-net
+    cap_add:
+      - NET_ADMIN
+    tmpfs:
+      - /tmp:size=10M
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
+  review-account-workflow:
+    build:
+      context: ./packages/vulnerable-apps/review-account-workflow
+    container_name: arena-review-account-workflow
+    ports:
+      - "3011:3000"
+    networks:
+      - vuln-net
+    cap_add:
+      - NET_ADMIN
+    tmpfs:
+      - /tmp:size=10M
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
+  review-file-workbench:
+    build:
+      context: ./packages/vulnerable-apps/review-file-workbench
+    container_name: arena-review-file-workbench
+    ports:
+      - "3012:3000"
+    networks:
+      - vuln-net
+    cap_add:
+      - NET_ADMIN
+    tmpfs:
+      - /tmp:size=10M
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
 networks:
   # Regular bridge so host port publishing works. Outbound internet from the
   # vulnerable apps is blocked at the container level by an iptables OUTPUT

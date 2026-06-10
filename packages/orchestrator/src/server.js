@@ -61,7 +61,7 @@ app.get('/problems/:id', optionalAuth, (req, res) => {
 
 app.post('/problems/:id/verify', optionalAuth, async (req, res) => {
   const { id } = req.params;
-  const { patch } = req.body;
+  const { patch, mode } = req.body;
   const validationError = validatePatchRequest(id, patch);
   if (validationError) {
     return res.status(validationError.status).json({ error: validationError.error });
@@ -87,6 +87,7 @@ app.post('/problems/:id/verify', optionalAuth, async (req, res) => {
         problemId: id,
         patch,
         passed: result.passed,
+        scoreMode: mode,
         durationMs: result.attackAfter && result.attackAfter.durationMs,
       });
 

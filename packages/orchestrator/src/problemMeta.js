@@ -104,6 +104,48 @@ const PROBLEM_META = {
       'Also sanitize the saved filename. Run path.basename on req.file.originalname and strip non [A-Za-z0-9._-] characters before writing to disk.',
     ],
   },
+  'review-support-portal': {
+    id: 'review-support-portal',
+    title: 'Support Portal Composite Review',
+    vulnerability: 'review-support-portal',
+    description:
+      'A support portal combines three beginner vulnerabilities in one workflow: SQL injection in agent login, stored XSS in ticket comments, and open redirect in handoff. ' +
+      'Your goal is to fix all three context boundaries: parameterized SQL, HTML escaping, and internal-only redirects.',
+    targetEndpoint: 'POST /agent/login + GET /tickets/:id + GET /handoff',
+    hints: [
+      'Find where email/password enter a SQL string, where comments enter HTML, and where next enters res.redirect.',
+      'Each sink needs its own defense. Do not try to solve SQL, HTML, and redirects with one generic blacklist.',
+      'Use bound SQL parameters, escape comment output, and allow only paths that start with / but not //.',
+    ],
+  },
+  'review-account-workflow': {
+    id: 'review-account-workflow',
+    title: 'Account Workflow Boundary Review',
+    vulnerability: 'review-account-workflow',
+    description:
+      'The account center combines IDOR, CSRF, and hardcoded secret exposure. ' +
+      'Your goal is to check the requesting user against the target account, require a CSRF token for transfers, and remove the admin key from browser-delivered HTML.',
+    targetEndpoint: 'GET /account/:id + POST /transfer + GET /',
+    hints: [
+      'Compare req.userId with req.params.id before returning account data.',
+      'State-changing POSTs need a server-issued token that attacker pages cannot mint.',
+      'Anything embedded in HTML or browser JavaScript is public. Move secret-backed access behind a server endpoint.',
+    ],
+  },
+  'review-file-workbench': {
+    id: 'review-file-workbench',
+    title: 'File Workbench Input Review',
+    vulnerability: 'review-file-workbench',
+    description:
+      'The file workbench combines path traversal, command injection, and insecure file upload. ' +
+      'Your goal is to constrain resolved file paths, call ping without a shell, and accept only safe upload extensions with sanitized filenames.',
+    targetEndpoint: 'GET /download + POST /ping + POST /upload',
+    hints: [
+      'Resolve the requested path and verify it remains under the public directory.',
+      'Use execFile with an argument array and validate hostnames with an allowlist.',
+      'Whitelist upload extensions and sanitize the saved filename; blocking only .html is not enough.',
+    ],
+  },
 };
 
 module.exports = { PROBLEM_META };

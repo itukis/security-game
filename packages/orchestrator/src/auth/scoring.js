@@ -1,6 +1,15 @@
 const { getServerClient } = require('./supabaseClient');
 
-async function recordSubmission({ userId, problemId, patch, passed, durationMs }) {
+const SCORE_BY_MODE = {
+  editPreview: 200,
+  editOnly: 2500,
+};
+
+function scoreForMode(scoreMode, fallbackScore) {
+  return SCORE_BY_MODE[scoreMode] || fallbackScore;
+}
+
+async function recordSubmission({ userId, problemId, patch, passed, scoreMode, durationMs }) {
   if (!userId) {
     return { recorded: false, firstClear: false, score: null };
   }
@@ -46,7 +55,7 @@ async function recordSubmission({ userId, problemId, patch, passed, durationMs }
     .insert({
       user_id: userId,
       problem_id: problemId,
-      score: problem.base_score,
+      score: scoreForMode(scoreMode, problem.base_score),
     })
     .select('score')
     .single();

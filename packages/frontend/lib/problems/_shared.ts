@@ -1,4 +1,5 @@
 import type {
+  Difficulty,
   PatchOption,
   ProblemPresentation,
   VulnerabilityType,
@@ -14,11 +15,15 @@ export type ProblemId =
   | "csrf-transfer"
   | "hardcoded-secrets"
   | "open-redirect"
-  | "file-upload";
+  | "file-upload"
+  | "review-support-portal"
+  | "review-account-workflow"
+  | "review-file-workbench";
 
 export type ProblemContent = ProblemPresentation & {
   id: ProblemId;
   vulnerability: VulnerabilityType;
+  difficulty?: Difficulty;
   title: string;
   shortDescription: string;
   scenario: string;

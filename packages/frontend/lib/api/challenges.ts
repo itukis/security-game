@@ -3,15 +3,12 @@ import type {
   ProblemResponse,
   VerifyResult,
 } from "@/lib/challengeTypes";
+import { applyPatch as applyUnifiedPatch } from "diff";
 import { mockChallenges } from "@/lib/mockChallenges";
-import {
-  getProblemContent,
-  problemOrder,
-  type ProblemId,
-} from "@/lib/problemContent";
+import { problemOrder, type ProblemId } from "@/lib/problemContent";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import type { DifficultyMode } from "@/lib/difficultyConfig";
 
-export const DEFAULT_PROBLEM_ID: ProblemId = "sqli-login";
 const STATIC_ONLY_PROBLEM_IDS = new Set<ProblemId>([
   "path-traversal-files",
   "cmd-injection-ping",
@@ -33,42 +30,46 @@ async function authHeader(): Promise<Record<string, string>> {
 }
 
 export async function getProblems(): Promise<Challenge[]> {
-  if (USE_MOCK) {
-    return mockChallenges;
-  }
-
-  // No list endpoint on the orchestrator — fetch each shipped problem.
-  const results = await Promise.all(
-    problemOrder.map((id) => getProblem(id).catch(() => undefined)),
-  );
-
-  return results.filter((c): c is Challenge => Boolean(c));
+  // The orchestrator has no list endpoint and its per-problem payload only
+  // adds a live initialCode read that the card UI does not consume. Build the
+  // list from the frontend-defined content so every problem in problemOrder
+  // shows up regardless of whether the orchestrator is reachable.
+  return problemOrder
+    .map((id) => getStaticChallenge(id))
+    .filter((c): c is Challenge => Boolean(c));
 }
 
 export async function getProblem(id: string): Promise<Challenge | undefined> {
-  if (USE_MOCK) {
-    return getStaticChallenge(id);
+  const fallback = getStaticChallenge(id);
+  if (USE_MOCK || isStaticOnlyProblem(id)) {
+    return fallback;
   }
 
-  const response = await fetch(`${API_BASE_URL}/problems/${id}`, {
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/problems/${id}`, {
+      cache: "no-store",
+    });
+  } catch {
+    return fallback;
+  }
 
   if (!response.ok) {
-    if (response.status === 404) {
-      return getStaticChallenge(id);
-    }
-
-    throw new Error(`Problem API error (${response.status})`);
+    return fallback;
   }
 
-  const problem = (await response.json()) as ProblemResponse;
-  return mapProblemToChallenge(problem);
+  try {
+    const problem = (await response.json()) as ProblemResponse;
+    return mapProblemToChallenge(id, problem) ?? fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 export async function verifyPatch(
   id: string,
   patch: string,
+  mode: DifficultyMode = "editPreview",
 ): Promise<VerifyResult> {
   if (USE_MOCK || isStaticOnlyProblem(id)) {
     return verifyMockPatch(id, patch);
@@ -80,7 +81,7 @@ export async function verifyPatch(
       "Content-Type": "application/json",
       ...(await authHeader()),
     },
-    body: JSON.stringify({ patch }),
+    body: JSON.stringify({ patch, mode }),
   });
   const responseText = await response.text();
 
@@ -161,7 +162,13 @@ function verifyMockPatch(id: string, patch: string): VerifyResult {
   const selectedPatch = challenge?.patchOptions.find(
     (patchOption) => patchOption.patch === patch,
   );
-  const passed = Boolean(selectedPatch?.isCorrect);
+  const patchedCode =
+    challenge?.initialCode === undefined
+      ? false
+      : applyUnifiedPatch(ensureTrailingNewline(challenge.initialCode), patch);
+  const passed =
+    Boolean(selectedPatch?.isCorrect) ||
+    (typeof patchedCode === "string" && staticPatchPasses(id, patchedCode));
 
   return {
     attackBefore: `攻撃成功: ${challenge?.attackVerifiedMessage ?? "脆弱性が刺さった疑似結果"}`,
@@ -172,6 +179,73 @@ function verifyMockPatch(id: string, patch: string): VerifyResult {
   };
 }
 
+function ensureTrailingNewline(value: string) {
+  return value.endsWith("\n") ? value : `${value}\n`;
+}
+
+function staticPatchPasses(id: string, code: string): boolean {
+  const hasPreparedSql =
+    /WHERE\s+(?:username|email)\s*=\s*\?\s+AND\s+(?:password)\s*=\s*\?/i.test(code) &&
+    /\.(?:get|all)\([^)]*(?:username|email)[^)]*password[^)]*\)/.test(code);
+  const hasHtmlEscape =
+    /function\s+escapeHtml/.test(code) &&
+    /escapeHtml\([^)]*(?:author|c\.author|comment\.author)/.test(code) &&
+    /escapeHtml\([^)]*(?:text|body|c\.text|comment\.body)/.test(code);
+  const hasAuthz =
+    /req\.userId\s*!==\s*req\.params\.id/.test(code) &&
+    /status\(403\)/.test(code);
+  const hasPathGuard =
+    /path\.resolve/.test(code) &&
+    /startsWith\([^)]*path\.sep/.test(code) &&
+    /status\(400\)/.test(code);
+  const hasExecFile =
+    /\bexecFile\s*\(/.test(code) &&
+    !/\bexec\s*\(\s*`/.test(code) &&
+    /\^\[a-zA-Z0-9/.test(code);
+  const hasCsrf =
+    /csrfTokens/.test(code) &&
+    /x-csrf-token/.test(code) &&
+    /csrfTokens\.has/.test(code) &&
+    /status\(403\)/.test(code);
+  const hidesSecret =
+    !/const\s+API_KEY\s*=/.test(code) &&
+    !/const\s+ADMIN_API_KEY\s*= '\$\{ADMIN_API_KEY\}'/.test(code) &&
+    !/sk-review-admin[^']*['"]/.test(extractHtmlScriptArea(code));
+  const hasRedirectGuard =
+    /startsWith\('\/'\)/.test(code) &&
+    /startsWith\('\/\/'\)/.test(code) &&
+    /status\(400\)/.test(code);
+  const hasUploadGuard =
+    /ALLOWED_EXTS|allowedExt/i.test(code) &&
+    /fileFilter/.test(code) &&
+    /path\.basename/.test(code) &&
+    /replace\(\s*\/\[\^A-Za-z0-9\._-\]\//.test(code);
+
+  const checks: Record<string, boolean> = {
+    "sqli-login": hasPreparedSql,
+    "xss-comments": hasHtmlEscape,
+    "idor-profile": hasAuthz,
+    "path-traversal-files": hasPathGuard,
+    "cmd-injection-ping": hasExecFile,
+    "csrf-transfer": hasCsrf,
+    "hardcoded-secrets": hidesSecret && /data-proxy/.test(code),
+    "open-redirect": hasRedirectGuard,
+    "file-upload": hasUploadGuard,
+    "review-support-portal": hasPreparedSql && hasHtmlEscape && hasRedirectGuard,
+    "review-account-workflow": hasAuthz && hasCsrf && hidesSecret,
+    "review-file-workbench": hasPathGuard && hasExecFile && hasUploadGuard,
+  };
+
+  return Boolean(checks[id]);
+}
+
+function extractHtmlScriptArea(code: string) {
+  const start = code.indexOf("res.send(`<!doctype html>");
+  if (start === -1) return "";
+  const end = code.indexOf("`);", start);
+  return end === -1 ? code.slice(start) : code.slice(start, end);
+}
+
 function getStaticChallenge(id: string): Challenge | undefined {
   return mockChallenges.find((challenge) => challenge.id === id);
 }
@@ -180,44 +254,19 @@ function isStaticOnlyProblem(id: string): boolean {
   return STATIC_ONLY_PROBLEM_IDS.has(id as ProblemId);
 }
 
-function mapProblemToChallenge(problem: ProblemResponse): Challenge {
-  // Merge the live API payload with frontend-only presentation content
-  // (causeSummary, stepCopy, defenseSuccessFlavor, etc.) from problemContent.
-  // When the problem ID has no matching frontend content, fall back to a
-  // minimal Challenge so the page still renders.
-  const content = getProblemContent(problem.id);
-
+function mapProblemToChallenge(
+  requestedId: string,
+  problem: ProblemResponse,
+): Challenge | undefined {
+  // Look up the frontend-defined content by the REQUESTED id, not the API
+  // response's id. The orchestrator owns only the live initialCode read; all
+  // presentation copy (scenario / stepCopy / patchOptions / hints / flavor)
+  // lives in problemContent and is keyed off the URL param.
+  const staticChallenge = getStaticChallenge(requestedId);
+  if (!staticChallenge) return undefined;
   return {
-    id: problem.id,
-    title: problem.title,
-    vulnerability: content?.vulnerability ?? problem.vulnerability,
-    difficulty: "Easy",
-    status: "available",
-    description: content?.shortDescription ?? problem.description,
-    scenario: content?.scenario ?? problem.description,
-    vulnerableAppTitle: content?.vulnerableAppTitle ?? problem.targetEndpoint,
-    targetEndpoint: problem.targetEndpoint,
-    // Prefer the localized JP hints over whatever the API ships (the
-    // orchestrator currently returns English hints). Falls back to the
-    // API value if no frontend content is registered.
-    hints: content?.hints ?? problem.hints,
+    ...staticChallenge,
     initialCode: problem.initialCode,
-    attackPayload: content?.attackPayload ?? "",
-    attackSuccessMessage:
-      content?.attackVerifiedMessage ?? "攻撃が成功しました",
-    patchOptions: content?.patchOptions ?? [],
-    explanation: content?.explanation ?? problem.description,
-    learnSummary: content?.learnSummary,
-    attackGoal: content?.attackGoal,
-    causeSummary: content?.causeSummary,
-    attackVerifiedMessage: content?.attackVerifiedMessage,
-    attackVerifyDisclaimer: content?.attackVerifyDisclaimer,
-    defenseSuccessFlavor: content?.defenseSuccessFlavor,
-    defenseFailureFlavor: content?.defenseFailureFlavor,
-    previewKind: content?.previewKind,
-    liveViewMode: content?.liveViewMode,
-    stepCopy: content?.stepCopy,
-    progress: content?.progress,
   };
 }
 

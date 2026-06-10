@@ -1,0 +1,70 @@
+--- a/src/server.js
++++ b/src/server.js
+@@ -2,7 +2,7 @@
+ const multer = require('multer');
+ const path = require('path');
+ const fs = require('fs');
+-const { exec } = require('child_process');
++const { execFile } = require('child_process');
+ 
+ const app = express();
+ app.use(express.json());
+@@ -14,19 +14,31 @@
+ fs.writeFileSync(path.join(publicDir, 'readme.txt'), 'public readme');
+ fs.writeFileSync(path.join(secretDir, 'flag.txt'), 'FLAG{review_file_workbench}');
+ 
++const ALLOWED_EXTS = new Set(['.txt', '.png', '.jpg']);
++
+ const storage = multer.diskStorage({
+   destination: uploadDir,
+-  filename: (_req, file, cb) => cb(null, file.originalname),
++  filename: (_req, file, cb) => {
++    const safe = path.basename(file.originalname).replace(/[^A-Za-z0-9._-]/g, '_');
++    cb(null, safe);
++  },
+ });
+-const upload = multer({ storage });
++const upload = multer({
++  storage,
++  fileFilter: (_req, file, cb) => {
++    cb(null, ALLOWED_EXTS.has(path.extname(file.originalname).toLowerCase()));
++  },
++});
+ 
+ app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+ 
+ // VULNERABLE: path traversal can escape publicDir.
+ app.get('/download', (req, res) => {
+-  const name = req.query.name;
+-  const filePath = path.join(publicDir, name);
+-  fs.readFile(filePath, 'utf8', (err, data) => {
++  const target = path.resolve(publicDir, req.query.name || '');
++  if (!target.startsWith(publicDir + path.sep)) {
++    return res.status(400).send('Bad Request');
++  }
++  fs.readFile(target, 'utf8', (err, data) => {
+     if (err) return res.status(404).send('File not found');
+     res.send(data);
+   });
+@@ -35,15 +47,18 @@
+ // VULNERABLE: host is interpolated into a shell command.
+ app.post('/ping', (req, res) => {
+   const { host } = req.body || {};
+-  exec(`ping -c 1 ${host}`, (err, stdout, stderr) => {
++  if (!/^[a-zA-Z0-9.-]+$/.test(host)) {
++    return res.status(400).json({ error: 'Invalid host' });
++  }
++  execFile('ping', ['-c', '1', host], (err, stdout, stderr) => {
+     res.json({ output: stdout || stderr || (err && err.message) });
+   });
+ });
+ 
+ // VULNERABLE: executable files are accepted and served from the app origin.
+ app.post('/upload', upload.single('file'), (req, res) => {
+-  if (!req.file) return res.status(400).json({ error: 'No file' });
+-  res.json({ ok: true, path: `/files/${req.file.originalname}` });
++  if (!req.file) return res.status(400).json({ error: 'No file or disallowed extension' });
++  res.json({ ok: true, path: `/files/${req.file.filename}` });
+ });
+ 
+ app.use('/files', express.static(uploadDir));

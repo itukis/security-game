@@ -20,7 +20,7 @@ export default async function ChallengesPage() {
                 問題一覧
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-300 sm:text-base">
-                5つのカテゴリ(SQLインジェクション / XSS / IDORによる認可バイパス / パストラバーサル / コマンドインジェクション)を、攻撃→原因確認→修正→再テストの同じ流れで体験できます。
+                初級9カテゴリに加えて、復習用の応用3問を追加しました。コード+プレビューまたはコードのみで、攻撃→原因確認→修正→再テストを進めます。
               </p>
             </div>
             <div className="rounded border border-emerald-300/30 bg-emerald-300/10 px-4 py-3 text-sm font-semibold text-emerald-100">

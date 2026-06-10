@@ -70,9 +70,9 @@ export const sqliLogin: ProblemContent = {
   vulnerability: "SQL Injection",
   title: "AIが生成したログイン画面を診断せよ",
   shortDescription:
-    "AIで生成されたログイン画面にあるSQLインジェクションを見つけ、認証突破を防ぐ修正を選びます。",
+    "AIで生成されたログイン画面にあるSQLインジェクションを見つけ、認証突破を防ぐコードへ修正します。",
   scenario:
-    "AIで生成されたログイン画面に、SQLインジェクションでログイン認証が突破される弱点が含まれている。攻撃テストを実行し、原因コードを確認して、正しい修正案を選ぶ。",
+    "AIで生成されたログイン画面に、SQLインジェクションでログイン認証が突破される弱点が含まれている。攻撃テストを実行し、原因コードを確認して、コードを直接修正する。",
   vulnerableAppTitle: "AI Generated Login / beta-0.3",
   targetEndpoint: "POST /login",
   learnSummary:
@@ -97,16 +97,16 @@ export const sqliLogin: ProblemContent = {
     step2Description:
       "入力値をSQL文字列に直接結合している箇所を探します。確認できたら次のステップへ進みます。",
     step3Description:
-      "プリペアドステートメントなど、入力値をSQL構文ではなく値として扱う修正を選びましょう。",
+      "プリペアドステートメントなど、入力値をSQL構文ではなく値として扱うコードへ修正しましょう。",
     step4Description:
-      "選んだ修正案でSQLインジェクションを防げるか、学習用の疑似判定で確認します。",
+      "編集したコードでSQLインジェクションを防げるか、学習用の疑似判定で確認します。",
     focusBoxTitle: "見るポイント",
     focusBoxBody:
       "入力値をSQL文字列へ直接結合していることが原因です。この形だと、入力値がSQL構文として扱われる可能性があります。",
     nextActionAttacked:
       "次にコードを読み、原因になっているSQLの組み立て方を確認しましょう。",
     nextActionCodeReviewed:
-      "入力値をSQL文字列に直接結合している原因を確認できました。次は修正案を選びましょう。",
+      "入力値をSQL文字列に直接結合している原因を確認できました。次はコードを修正しましょう。",
     stepperStep2Subtitle: "SQLの組み立て方を見る",
   },
   progress: {
@@ -123,9 +123,9 @@ export const sqliLogin: ProblemContent = {
   patchOptions: [
     {
       id: "raw-sql-trim",
-      title: "入力値を trim してから結合する",
+      title: "実行前にSQL文字列を整える",
       description:
-        "空白を取り除くだけでは、SQLの構文として解釈される問題は残ります。",
+        "`db.prepare(sql.trim()).get()` のように、組み立て済みSQLへ前処理を入れる案です。引用符入りの入力がどう扱われるか見比べてください。",
       patch: wrongPatch(
         INITIAL_CODE,
         "    const row = db.prepare(sql).get();",
@@ -135,17 +135,17 @@ export const sqliLogin: ProblemContent = {
     },
     {
       id: "prepared-statement",
-      title: "プリペアドステートメントを使う",
+      title: "SQL本文と入力値の渡し方を分ける",
       description:
-        "入力値をSQL構文ではなく値として渡す、推奨される安全な修正です。",
+        "`WHERE username = ? AND password = ?` のような形にし、`get(username, password)` で値を後から渡す案です。",
       patch: SOLUTION_PATCH,
       isCorrect: true,
     },
     {
       id: "hide-password",
-      title: "パスワード欄を hidden にする",
+      title: "失敗時レスポンスを少し変える",
       description:
-        "見た目だけの変更です。サーバー側のSQL組み立てに穴が残ります。",
+        "`res.json({ success: false, hint: 'try again' })` のように、レスポンス側だけを変える案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "      res.json({ success: false });",
