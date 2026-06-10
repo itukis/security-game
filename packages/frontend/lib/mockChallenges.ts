@@ -8,7 +8,7 @@ function buildMockChallenge(id: keyof typeof problemContent): Challenge {
     id: content.id,
     title: content.title,
     vulnerability: content.vulnerability,
-    difficulty: "Easy",
+    difficulty: content.difficulty ?? "Easy",
     status: "available",
     description: content.shortDescription,
     scenario: content.scenario,

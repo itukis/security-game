@@ -49,11 +49,11 @@ export const pathTraversalFiles: ProblemContent = {
   vulnerability: "Path Traversal",
   title: "公開ダウンローダーから ../ を締め出せ",
   shortDescription:
-    "ファイル名をそのままパスに結合しているダウンロードAPIを診断し、公開ディレクトリの外を読めなくする修正を選びます。",
+    "ファイル名をそのままパスに結合しているダウンロードAPIを診断し、公開ディレクトリの外を読めなくするコードへ修正します。",
   scenario:
     "社内ツールの公開ファイルダウンローダーは、クエリパラメータで受け取ったファイル名をそのまま public/ ディレクトリに結合して返している。" +
     "名前に ../ を混ぜると想定外のディレクトリへ脱出でき、非公開ファイルまで読み取れてしまう。" +
-    "攻撃テストで動作を確認し、パスを正規化して公開ディレクトリ内に限定する修正を選ぼう。",
+    "攻撃テストで動作を確認し、パスを正規化して公開ディレクトリ内に限定するコードへ修正しよう。",
   vulnerableAppTitle: "File Downloader / internal-0.2",
   targetEndpoint: "GET /download?name=<filename>",
   learnSummary:
@@ -80,7 +80,7 @@ export const pathTraversalFiles: ProblemContent = {
     step2Description:
       "ダウンロードハンドラの中で、ファイル名を検証せずに path.join へ渡している箇所を探します。",
     step3Description:
-      "パスを正規化して公開ディレクトリ内に限定する方向の修正案を選びましょう。",
+      "パスを正規化して公開ディレクトリ内に限定する方向へコードを修正しましょう。",
     step4Description:
       "../ を含むリクエストが 400 で弾かれるか、疑似判定で確認します。",
     focusBoxTitle: "見るポイント",
@@ -89,7 +89,7 @@ export const pathTraversalFiles: ProblemContent = {
     nextActionAttacked:
       "次にコードを読み、ファイル名の検証が抜けている箇所を確認しましょう。",
     nextActionCodeReviewed:
-      "path.join に無検証で渡している箇所を確認できました。次は修正案を選びましょう。",
+      "path.join に無検証で渡している箇所を確認できました。次はコードを修正しましょう。",
     stepperStep2Subtitle: "パスの組み立て方を見る",
   },
   progress: {
@@ -109,9 +109,9 @@ export const pathTraversalFiles: ProblemContent = {
   patchOptions: [
     {
       id: "replace-traversal",
-      title: "../ を文字列置換で削る",
+      title: "危険そうな部分文字列を削る",
       description:
-        "req.query.name から ../ を除去しますが、....// のように入れ子にした文字列で迂回できます。",
+        "`req.query.name.replace(/\\.\\.\\/+/g, '')` のように、入力文字列から一部パターンを消す案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "  const name = req.query.name;",
@@ -121,17 +121,17 @@ export const pathTraversalFiles: ProblemContent = {
     },
     {
       id: "resolve-and-check",
-      title: "path.resolve で正規化して公開ディレクトリ外を弾く",
+      title: "組み立て後の絶対パスを確認する",
       description:
-        "絶対パスに正規化してから公開ディレクトリ配下かどうかを確認する、推奨される安全な修正です。",
+        "`path.resolve(PUBLIC_DIR, name)` の結果が `PUBLIC_DIR` 配下にあるかを、読み込み前に確認する案です。",
       patch: SOLUTION_PATCH,
       isCorrect: true,
     },
     {
       id: "comment-warning",
-      title: "コードにコメントで注意書きを追加する",
+      title: "呼び出し側への注意をコメントに残す",
       description:
-        "開発者への注意喚起にはなりますが、実行時に ../ を弾く処理は一切追加されません。",
+        "`// TODO: name に ../ を渡さない` のように、実装上の注意を書き足す案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "app.get('/download', (req, res) => {\n  const name = req.query.name;",

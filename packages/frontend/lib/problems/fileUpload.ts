@@ -86,11 +86,11 @@ export const fileUpload: ProblemContent = {
   vulnerability: "Insecure File Upload",
   title: "ファイルアップローダーに .html を入れさせるな",
   shortDescription:
-    "拡張子を検証していないファイルアップロードAPIを診断し、悪意のあるHTMLが配信・実行されない修正を選びます。",
+    "拡張子を検証していないファイルアップロードAPIを診断し、悪意のあるHTMLが配信・実行されないコードへ修正します。",
   scenario:
     "ファイル共有ツールは、アップロードされたファイルを拡張子チェックなしで保存し、/files/<name> から Express の static で配信している。" +
     "攻撃者は malicious.html を上げて GET /files/malicious.html を踏ませることで、同一オリジン内で任意の JavaScript を実行できてしまう。" +
-    "攻撃テストで .html がアップロード・実行できることを確認し、許可拡張子をホワイトリストで絞る方向の修正を選ぼう。",
+    "攻撃テストで .html がアップロード・実行できることを確認し、許可拡張子をホワイトリストで絞る方向へコードを修正しよう。",
   vulnerableAppTitle: "File Share / mvp-0.3",
   targetEndpoint: "POST /upload",
   learnSummary:
@@ -117,7 +117,7 @@ export const fileUpload: ProblemContent = {
     step2Description:
       "multer の設定で、fileFilter や filename のサニタイズが入っていない箇所を探します。",
     step3Description:
-      "拡張子をホワイトリストで絞り、ファイル名もサニタイズする方向の修正案を選びましょう。",
+      "拡張子をホワイトリストで絞り、ファイル名もサニタイズする方向へコードを修正しましょう。",
     step4Description:
       ".html のアップロードが 400 で弾かれるか、再テストで確認します。",
     focusBoxTitle: "見るポイント",
@@ -126,7 +126,7 @@ export const fileUpload: ProblemContent = {
     nextActionAttacked:
       "次にコードを読み、拡張子チェックとファイル名サニタイズが抜けている箇所を確認しましょう。",
     nextActionCodeReviewed:
-      "multer の設定にホワイトリストが無いことを確認できました。次は修正案を選びましょう。",
+      "multer の設定にホワイトリストが無いことを確認できました。次はコードを修正しましょう。",
     stepperStep2Subtitle: "multer の設定を見る",
   },
   progress: {
@@ -145,9 +145,9 @@ export const fileUpload: ProblemContent = {
   patchOptions: [
     {
       id: "blacklist-html",
-      title: ".html だけブラックリストで弾く",
+      title: ".html の名前だけを拒否する",
       description:
-        ".htm / .svg / .xhtml / .js など別の実行可能形式で迂回されるため、本質的な対策にはなりません。",
+        "`!/\\.html$/i.test(file.originalname)` のように、特定の拡張子名だけを見て受け付け可否を決める案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "const upload = multer({ storage });",
@@ -157,17 +157,17 @@ export const fileUpload: ProblemContent = {
     },
     {
       id: "whitelist-and-sanitize",
-      title: "拡張子をホワイトリストし、ファイル名をサニタイズする",
+      title: "受け付ける拡張子と保存名を整理する",
       description:
-        ".txt / .png / .jpg のみ受け付け、保存名から記号を除去する、推奨される安全な修正です。",
+        "`allowedExt.has(ext)` と `path.basename(...).replace(...)` を使い、種類と保存名の両方を見る案です。",
       patch: SOLUTION_PATCH,
       isCorrect: true,
     },
     {
       id: "rename-random",
-      title: "保存名をランダムにするだけ",
+      title: "保存名にランダム値を足す",
       description:
-        "ファイル名は安全になりますが、拡張子はそのままなので .html がブラウザで実行される問題は残ります。",
+        "`Math.random().toString(36).slice(2) + '-' + originalname` のように、保存ファイル名だけを変える案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "  filename: (_req, file, cb) => cb(null, file.originalname),",

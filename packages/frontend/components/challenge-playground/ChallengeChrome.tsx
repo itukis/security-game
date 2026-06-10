@@ -23,7 +23,7 @@ export function DifficultySwitcher({
             Difficulty
           </p>
           <p className="mt-1 text-sm leading-5 text-zinc-300">
-            出題モードを選ぶと、Step 3 の修正方法とヒント・スコア上限が変わります。
+            出題モードを選ぶと、プレビュー有無・ヒント・スコア上限が変わります。
           </p>
         </div>
         <div
@@ -83,7 +83,7 @@ export function StickyMissionBar({
           </span>
           {selectedPatchTitle ? (
             <span className="rounded border border-emerald-300/30 bg-emerald-300/10 px-2 py-1 text-xs font-bold text-emerald-100">
-              選択中: {selectedPatchTitle}
+              編集中: {selectedPatchTitle}
             </span>
           ) : null}
         </div>

@@ -15,7 +15,6 @@ type ResultPanelProps = {
   defenseState: DefenseState;
   disabledReason: string | null;
   errorMessage: string | null;
-  isEditorMode: boolean;
   loadingStep: string | null;
   selectedPatchTitle?: string;
   verifyResult: VerifyResult | null;
@@ -33,7 +32,6 @@ export function ResultPanel({
   defenseState,
   disabledReason,
   errorMessage,
-  isEditorMode,
   loadingStep,
   selectedPatchTitle,
   verifyResult,
@@ -51,7 +49,7 @@ export function ResultPanel({
     defenseState === "error";
   const showBackToEditor =
     defenseState === "failure" || defenseState === "error";
-  const backToEditorLabel = isEditorMode ? "戻って修正する" : "修正案を選び直す";
+  const backToEditorLabel = "戻って修正する";
 
   const before = verifyResult?.attackBefore ?? null;
   const after = verifyResult?.attackAfter ?? null;
@@ -126,9 +124,9 @@ export function ResultPanel({
 
       <dl className="mt-5 grid gap-3 rounded-lg border border-zinc-800 bg-black p-4 text-sm">
         <div className="flex items-center justify-between gap-4 border-b border-zinc-800 pb-3">
-          <dt className="text-zinc-500">Selected patch</dt>
+            <dt className="text-zinc-500">Edited code</dt>
           <dd className="text-right font-semibold text-zinc-200">
-            {selectedPatchTitle ?? "未選択"}
+            {selectedPatchTitle ?? "未編集"}
           </dd>
         </div>
         <div>
@@ -161,7 +159,7 @@ export function ResultPanel({
                 onClick={onTryAnotherPatch}
                 className="inline-flex h-11 items-center justify-center rounded border border-cyan-300/60 bg-cyan-300 px-4 text-sm font-black text-zinc-950 transition hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-100 focus:ring-offset-2 focus:ring-offset-zinc-950"
               >
-                別の修正案を試す
+                もう一度修正する
               </button>
             ) : null}
             <button

@@ -49,11 +49,11 @@ export const openRedirect: ProblemContent = {
   vulnerability: "Open Redirect",
   title: "ログイン後リダイレクトの脱出を止めろ",
   shortDescription:
-    "redirect パラメータを検証せずに外部URLへ飛ばしてしまうログイン成功ページを診断し、内部パスのみに限定する修正を選びます。",
+    "redirect パラメータを検証せずに外部URLへ飛ばしてしまうログイン成功ページを診断し、内部パスのみに限定するコードへ修正します。",
   scenario:
     "ログイン成功ページは ?redirect= の値をそのまま res.redirect に渡している。" +
     "攻撃者は redirect=https://evil.example.com を仕込んだリンクを配り、被害者が正規ログインの直後に攻撃者の用意したフィッシングサイトへ飛ばされる、という導線を作れる。" +
-    "攻撃テストで外部URLへリダイレクトされることを確認し、相対パスのみ許可する方向の修正を選ぼう。",
+    "攻撃テストで外部URLへリダイレクトされることを確認し、相対パスのみ許可する方向へコードを修正しよう。",
   vulnerableAppTitle: "Auth Service / mvp-0.2",
   targetEndpoint: "GET /login-success?redirect=<url>",
   learnSummary:
@@ -80,7 +80,7 @@ export const openRedirect: ProblemContent = {
     step2Description:
       "ログイン成功ハンドラの中で、redirect の値を検証せずに res.redirect に渡している箇所を探します。",
     step3Description:
-      "値が / で始まり // で始まらないことを確かめる方向の修正案を選びましょう。",
+      "値が / で始まり // で始まらないことを確かめる方向へコードを修正しましょう。",
     step4Description:
       "外部URLや // 始まりのパスが 400 で弾かれるか、再テストで確認します。",
     focusBoxTitle: "見るポイント",
@@ -89,7 +89,7 @@ export const openRedirect: ProblemContent = {
     nextActionAttacked:
       "次にコードを読み、リダイレクト先の検証が抜けている箇所を確認しましょう。",
     nextActionCodeReviewed:
-      "値を無検証でリダイレクトに渡している箇所を確認できました。次は修正案を選びましょう。",
+      "値を無検証でリダイレクトに渡している箇所を確認できました。次はコードを修正しましょう。",
     stepperStep2Subtitle: "リダイレクト先の検証を見る",
   },
   progress: {
@@ -109,9 +109,9 @@ export const openRedirect: ProblemContent = {
   patchOptions: [
     {
       id: "block-http",
-      title: "http:// で始まる場合だけ弾く",
+      title: "http:// のケースだけ拒否する",
       description:
-        "https:// や //evil.example.com の形は通ってしまうため、外部URLへの誘導を防げません。",
+        "`redirectTo.startsWith('http://')` のときだけ 400 を返す案です。URLの別表現も見て判断してください。",
       patch: wrongPatch(
         INITIAL_CODE,
         "  const redirectTo = req.query.redirect || '/dashboard';\n  res.redirect(redirectTo);",
@@ -121,17 +121,17 @@ export const openRedirect: ProblemContent = {
     },
     {
       id: "relative-only",
-      title: "/ で始まり // で始まらないパスのみ許可する",
+      title: "アプリ内パスの形だけを通す",
       description:
-        "外部URLやプロトコル相対URLを弾き、アプリ内の相対パスだけに限定する、推奨される安全な修正です。",
+        "`redirectTo.startsWith('/') && !redirectTo.startsWith('//')` のように、遷移先の形を確認する案です。",
       patch: SOLUTION_PATCH,
       isCorrect: true,
     },
     {
       id: "warn-only",
-      title: "リダイレクト前に警告メッセージを出す",
+      title: "遷移先をログに出してから進める",
       description:
-        "ブラウザは警告を素通りして遷移するため、リダイレクト自体は止められません。",
+        "`console.warn('redirecting to', redirectTo)` を追加し、遷移先を記録してから `res.redirect` する案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "  const redirectTo = req.query.redirect || '/dashboard';\n  res.redirect(redirectTo);",

@@ -32,7 +32,10 @@ export function isPreviewKind(value: unknown): value is PreviewKind {
     value === "transfer" ||
     value === "dashboard" ||
     value === "redirect" ||
-    value === "upload"
+    value === "upload" ||
+    value === "supportPortal" ||
+    value === "accountWorkflow" ||
+    value === "fileWorkbench"
   );
 }
 

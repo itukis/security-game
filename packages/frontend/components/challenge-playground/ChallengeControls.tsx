@@ -56,12 +56,10 @@ export function PreviewApplyControl({
 export function VerifyTrigger({
   canRetest,
   disabledReason,
-  isEditorMode,
   onSubmit,
 }: {
   canRetest: boolean;
   disabledReason: string | null;
-  isEditorMode: boolean;
   onSubmit: () => void;
 }) {
   return (
@@ -72,9 +70,7 @@ export function VerifyTrigger({
             Verify
           </p>
           <p className="mt-1 text-sm text-zinc-300">
-            {isEditorMode
-              ? "コードを修正したら、ここから実際の攻撃テストで検証します。"
-              : "修正案を選んだら、ここから実際の攻撃テストで検証します。"}
+            コードを修正したら、ここから実際の攻撃テストで検証します。
           </p>
         </div>
         <button
@@ -83,7 +79,7 @@ export function VerifyTrigger({
           disabled={!canRetest}
           className="inline-flex h-11 items-center justify-center rounded border border-cyan-300/60 bg-cyan-300 px-5 text-sm font-black text-zinc-950 shadow-lg shadow-cyan-950/40 transition hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-100 focus:ring-offset-2 focus:ring-offset-zinc-950 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:shadow-none"
         >
-          {isEditorMode ? "修正を検証する" : "修正案を検証する"}
+          修正を検証する
         </button>
       </div>
       {disabledReason ? (

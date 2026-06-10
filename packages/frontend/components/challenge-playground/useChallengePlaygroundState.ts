@@ -23,7 +23,7 @@ import { makePatch } from "@/lib/makePatch";
 
 export function useChallengePlaygroundState(challenge: Challenge): PlaygroundState {
   const toast = useToast();
-  const [mode, setMode] = useState<DifficultyMode>("select");
+  const [mode, setMode] = useState<DifficultyMode>("editPreview");
   const difficulty = DIFFICULTY[mode];
   const [attackState, setAttackState] = useState<"idle" | "running" | "success" | "failure">("idle");
   const [codeReviewed, setCodeReviewed] = useState(false);
@@ -46,7 +46,7 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
 
   const selectedPatch = challenge.patchOptions.find((patch) => patch.id === selectedPatchId);
   const hasAttacked = attackState === "success";
-  const isEditorMode = difficulty.patchInput === "editor";
+  const isEditorMode = true;
   const hasEditedCode = isEditorMode ? editorCode !== challenge.initialCode : false;
   const hasSelectedPatch = isEditorMode ? hasEditedCode : selectedPatchId !== null;
   const canSelectPatch = hasAttacked && codeReviewed;
@@ -64,9 +64,7 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
     : !codeReviewed
       ? "原因コードを確認すると、修正に進めます。"
       : !hasSelectedPatch
-        ? isEditorMode
-          ? "コードを編集すると検証できます。"
-          : "修正案を選択すると検証できます。"
+        ? "コードを編集すると検証できます。"
         : null;
 
   function resetPreviewApplyState() {
@@ -77,9 +75,7 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
   }
 
   function makeCurrentPatch() {
-    return isEditorMode
-      ? makePatch(PATCH_FILE_PATH, challenge.initialCode, editorCode)
-      : selectedPatch?.patch;
+    return makePatch(PATCH_FILE_PATH, challenge.initialCode, editorCode);
   }
 
   function handleModeChange(next: DifficultyMode) {
@@ -230,11 +226,7 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
 
   const showLivePreview = isEditorMode && difficulty.showSite;
   const liveViewMode = challenge.liveViewMode ?? "iframe";
-  const selectedPatchTitle = isEditorMode
-    ? hasEditedCode
-      ? "ユーザー編集コード"
-      : undefined
-    : selectedPatch?.title;
+  const selectedPatchTitle = hasEditedCode ? "編集済みコード" : undefined;
 
   return {
     model: {

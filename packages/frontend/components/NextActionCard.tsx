@@ -18,7 +18,7 @@ const STATUS_BADGE_LABEL: Record<QuestUiStatus, string> = {
   idle: "未開始",
   attacked: "攻撃済み",
   codeReviewed: "原因確認済み",
-  patchSelected: "修正案選択済み",
+  patchSelected: "コード修正済み",
   verifying: "検証中",
   passed: "防御成功",
   failed: "防御失敗",
@@ -38,11 +38,11 @@ const defaultActionText: Record<QuestUiStatus, { label: string; body: string }> 
   },
   codeReviewed: {
     label: "次にやること",
-    body: "原因を確認できました。次は修正案を選びましょう。",
+    body: "原因を確認できました。次はコードを直接修正しましょう。",
   },
   patchSelected: {
     label: "次にやること",
-    body: "選んだ修正案で再テストし、防御できるか確認しましょう。",
+    body: "編集したコードで再テストし、防御できるか確認しましょう。",
   },
   verifying: {
     label: "検証中",
@@ -54,7 +54,7 @@ const defaultActionText: Record<QuestUiStatus, { label: string; body: string }> 
   },
   failed: {
     label: "結果を確認",
-    body: "結果と解説を確認しましょう。防御失敗なら、別の修正案を選んで再テストしてください。",
+    body: "結果と解説を確認しましょう。防御失敗なら、コードを直して再テストしてください。",
   },
 };
 
@@ -90,7 +90,7 @@ export function NextActionCard({
       <p className="mt-2 text-sm leading-5 text-zinc-100">{body}</p>
       {selectedPatchTitle ? (
         <p className="mt-2 text-xs leading-5 text-zinc-300">
-          選択中の修正案:{" "}
+          編集状態:{" "}
           <span className="font-bold text-white">{selectedPatchTitle}</span>
         </p>
       ) : null}

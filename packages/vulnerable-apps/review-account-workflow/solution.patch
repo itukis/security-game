@@ -1,0 +1,65 @@
+--- a/src/server.js
++++ b/src/server.js
+@@ -10,6 +10,7 @@
+   'user-1': { id: 'user-1', owner: 'Alice', email: 'alice@example.com', balance: 10000, secretNote: 'VIP limit: 50000' },
+   'user-2': { id: 'user-2', owner: 'Bob', email: 'bob@example.com', balance: 500, secretNote: 'Collections hold' },
+ };
++const csrfTokens = new Set();
+ 
+ app.use((req, _res, next) => {
+   req.userId = req.headers['x-user-id'] || 'user-1';
+@@ -25,16 +26,18 @@
+   <h1>Account Center</h1>
+   <p id="summary"></p>
+   <script>
+-    const ADMIN_API_KEY = '${ADMIN_API_KEY}';
+-    fetch('/api/admin/accounts', { headers: { 'Authorization': 'Bearer ' + ADMIN_API_KEY } })
++    fetch('/api/account-summary')
+       .then(r => r.json())
+-      .then(d => document.getElementById('summary').textContent = d.accounts.length + ' accounts loaded');
++      .then(d => document.getElementById('summary').textContent = d.owner + ': ' + d.balance);
+   </script>
+ </body></html>`);
+ });
+ 
+ // VULNERABLE: IDOR, because URL :id is trusted without authorization.
+ app.get('/account/:id', (req, res) => {
++  if (req.userId !== req.params.id) {
++    return res.status(403).json({ error: 'Forbidden' });
++  }
+   const account = accounts[req.params.id];
+   if (!account) return res.status(404).json({ error: 'Account not found' });
+   res.json(account);
+@@ -45,8 +48,19 @@
+   res.json({ userId: req.userId, balance: account ? account.balance : 0 });
+ });
+ 
++app.get('/csrf-token', (_req, res) => {
++  const token = Math.random().toString(36).slice(2) + Date.now().toString(36);
++  csrfTokens.add(token);
++  res.json({ token });
++});
++
+ // VULNERABLE: state-changing transfer accepts requests without a CSRF token.
+ app.post('/transfer', (req, res) => {
++  const token = req.headers['x-csrf-token'];
++  if (!token || !csrfTokens.has(token)) {
++    return res.status(403).json({ error: 'CSRF token missing or invalid' });
++  }
++  csrfTokens.delete(token);
+   const { to, amount } = req.body;
+   const amt = parseInt(amount, 10);
+   if (!to || !amt || amt <= 0) return res.status(400).json({ error: 'Invalid transfer' });
+@@ -57,6 +71,12 @@
+   res.json({ success: true, newBalance: accounts[req.userId].balance });
+ });
+ 
++app.get('/api/account-summary', (req, res) => {
++  const account = accounts[req.userId];
++  if (!account) return res.status(404).json({ error: 'Account not found' });
++  res.json({ owner: account.owner, balance: account.balance });
++});
++
+ app.get('/api/admin/accounts', (req, res) => {
+   if (req.headers.authorization === `Bearer ${ADMIN_API_KEY}`) {
+     return res.json({ accounts: Object.values(accounts) });

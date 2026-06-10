@@ -82,11 +82,11 @@ export const csrfTransfer: ProblemContent = {
   vulnerability: "CSRF",
   title: "送金APIをCSRFから守れ",
   shortDescription:
-    "CSRFトークンを検証していない送金APIを診断し、外部サイトからの偽装送金を防ぐ修正を選びます。",
+    "CSRFトークンを検証していない送金APIを診断し、外部サイトからの偽装送金を防ぐコードへ修正します。",
   scenario:
     "オンラインバンキングの送金APIは、ログイン中のユーザーからのPOSTリクエストを内容だけで受け付けてしまう。" +
     "攻撃者は罠ページに隠しフォームを置くだけで、被害者のブラウザから本人の名義で送金リクエストを送らせることができる。" +
-    "攻撃テストでトークンなしのリクエストが通ることを確認し、CSRFトークンの発行と検証を入れる方向の修正を選ぼう。",
+    "攻撃テストでトークンなしのリクエストが通ることを確認し、CSRFトークンの発行と検証を入れる方向へコードを修正しよう。",
   vulnerableAppTitle: "Banking Transfer / mvp-0.1",
   targetEndpoint: "POST /transfer",
   learnSummary:
@@ -113,7 +113,7 @@ export const csrfTransfer: ProblemContent = {
     step2Description:
       "送金ハンドラの中で、リクエストの出元やトークンを一切検証していない箇所を探します。",
     step3Description:
-      "GET /csrf-token でトークンを発行し、POST /transfer で X-CSRF-Token ヘッダを検証する方向の修正案を選びましょう。",
+      "GET /csrf-token でトークンを発行し、POST /transfer で X-CSRF-Token ヘッダを検証する方向へコードを修正しましょう。",
     step4Description:
       "トークンを付けないリクエストが 403 で弾かれるか、再テストで確認します。",
     focusBoxTitle: "見るポイント",
@@ -122,7 +122,7 @@ export const csrfTransfer: ProblemContent = {
     nextActionAttacked:
       "次にコードを読み、リクエストの出元を確かめていない箇所を確認しましょう。",
     nextActionCodeReviewed:
-      "送金ハンドラに CSRF 検証が無いことを確認できました。次は修正案を選びましょう。",
+      "送金ハンドラに CSRF 検証が無いことを確認できました。次はコードを修正しましょう。",
     stepperStep2Subtitle: "リクエストの出元を検証しているか見る",
   },
   progress: {
@@ -141,9 +141,9 @@ export const csrfTransfer: ProblemContent = {
   patchOptions: [
     {
       id: "log-transfer",
-      title: "送金内容をログに残すだけ",
+      title: "送金イベントをログに残す",
       description:
-        "監査ログはあった方が良いですが、リクエストの出元を検証していないため CSRF は防げません。",
+        "`console.log('transfer', req.userId, req.body)` を追加し、あとから送金操作を追跡できるようにする案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "app.post('/transfer', (req, res) => {\n  const { to, amount } = req.body;",
@@ -153,17 +153,17 @@ export const csrfTransfer: ProblemContent = {
     },
     {
       id: "csrf-token-check",
-      title: "CSRFトークンを発行・検証する",
+      title: "一回限りの値を発行して照合する",
       description:
-        "GET /csrf-token でトークンを発行し、POST /transfer で X-CSRF-Token ヘッダを検証する、推奨される安全な修正です。",
+        "`GET /csrf-token` で保存した値と、`req.headers['x-csrf-token']` の値をPOST時に比べる案です。",
       patch: SOLUTION_PATCH,
       isCorrect: true,
     },
     {
       id: "block-user-agent",
-      title: "特定の User-Agent を弾く",
+      title: "リクエストヘッダの種類で分ける",
       description:
-        "User-Agent はクライアント側で自由に詐称できるため、CSRF の本質的な対策にはなりません。",
+        "`req.headers['user-agent']` を見て、特定のクライアント名なら拒否する案です。ヘッダの信頼性も含めて判断してください。",
       patch: wrongPatch(
         INITIAL_CODE,
         "app.post('/transfer', (req, res) => {\n  const { to, amount } = req.body;",

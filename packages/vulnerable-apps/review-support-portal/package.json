@@ -1,0 +1,12 @@
+{
+  "name": "review-support-portal",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "better-sqlite3": "^11.0.0"
+  }
+}
