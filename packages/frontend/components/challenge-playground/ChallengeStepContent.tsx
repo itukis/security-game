@@ -3,6 +3,7 @@
 import { AttackPanel } from "@/components/AttackPanel";
 import { CodeEditor } from "@/components/CodeEditor";
 import { CodeViewer } from "@/components/CodeViewer";
+import { PatchSelector } from "@/components/PatchSelector";
 import { ResultPanel } from "@/components/ResultPanel";
 import { VulnerableAppPreview } from "@/components/VulnerableAppPreview";
 import { ActiveStepHeader } from "@/components/challenge-playground/ChallengeChrome";
@@ -175,7 +176,15 @@ function PatchStep({
 }) {
   return (
     <div className="grid min-w-0 gap-4">
-      <EditorPatchArea model={model} actions={actions} />
+      {model.difficulty.patchInput === "selector" ? (
+        <PatchSelector
+          options={model.challenge.patchOptions}
+          selectedId={model.selectedPatchId}
+          onSelect={actions.handleSelectPatch}
+        />
+      ) : (
+        <EditorPatchArea model={model} actions={actions} />
+      )}
 
       <VerifyTrigger
         canRetest={model.canRetest}

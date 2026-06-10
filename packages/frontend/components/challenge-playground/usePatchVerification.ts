@@ -16,6 +16,7 @@ type ToastApi = {
 type UsePatchVerificationArgs = {
   challengeId: string;
   difficulty: DifficultySettings;
+  scoreCap: number;
   makeCurrentPatch: () => string | undefined;
   refreshPreviewAfterPatch: (
     nextStatus: PreviewServerStatus,
@@ -35,6 +36,7 @@ type UsePatchVerificationArgs = {
 export function usePatchVerification({
   challengeId,
   difficulty,
+  scoreCap,
   makeCurrentPatch,
   refreshPreviewAfterPatch,
   handleRevealHint,
@@ -68,7 +70,7 @@ export function usePatchVerification({
       ]);
       setVerifyResult(result);
       setDefenseState(result.passed ? "success" : "failure");
-      setScore(result.passed ? difficulty.scoreCap : Math.min(difficulty.scoreCap, 35));
+      setScore(result.passed ? scoreCap : Math.min(scoreCap, 35));
       if (result.passed) {
         setCompletedAt(Date.now());
         toast.success("問題をクリアしました！");

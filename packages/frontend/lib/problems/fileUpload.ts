@@ -175,5 +175,29 @@ export const fileUpload: ProblemContent = {
       ),
       isCorrect: false,
     },
+    {
+      id: "limit-file-size",
+      title: "ファイルサイズの上限だけを付ける",
+      description:
+        "`multer({ storage, limits: { fileSize: 1024 * 1024 } })` でサイズだけを制限する案です。1KBの .html でも実行されるか考えてください。",
+      patch: wrongPatch(
+        INITIAL_CODE,
+        "const upload = multer({ storage });",
+        "const upload = multer({ storage, limits: { fileSize: 1024 * 1024 } });",
+      ),
+      isCorrect: false,
+    },
+    {
+      id: "scan-content-todo",
+      title: "中身をスキャンする想定でコメントだけ書く",
+      description:
+        "`// TODO: ウイルススキャンAPIを後で繋ぐ` のような将来対応メモを足す案です。",
+      patch: wrongPatch(
+        INITIAL_CODE,
+        "app.post('/upload', upload.single('file'), (req, res) => {\n  if (!req.file) return res.status(400).json({ error: 'No file' });",
+        "app.post('/upload', upload.single('file'), (req, res) => {\n  // TODO: ウイルススキャンAPIを後で繋ぐ\n  if (!req.file) return res.status(400).json({ error: 'No file' });",
+      ),
+      isCorrect: false,
+    },
   ],
 };

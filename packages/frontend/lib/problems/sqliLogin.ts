@@ -153,5 +153,29 @@ export const sqliLogin: ProblemContent = {
       ),
       isCorrect: false,
     },
+    {
+      id: "limit-input-length",
+      title: "入力の長さだけを制限する",
+      description:
+        "`if (username.length > 32 || password.length > 32) ...` のように、文字数だけを縛る案です。短いペイロードでも刺さるか考えてみてください。",
+      patch: wrongPatch(
+        INITIAL_CODE,
+        "  if (!username || !password) {\n    return res.status(400).json({ success: false, error: 'Missing username or password' });\n  }",
+        "  if (!username || !password) {\n    return res.status(400).json({ success: false, error: 'Missing username or password' });\n  }\n  if (username.length > 32 || password.length > 32) {\n    return res.status(400).json({ success: false, error: 'Too long' });\n  }",
+      ),
+      isCorrect: false,
+    },
+    {
+      id: "strip-quotes",
+      title: "シングルクォートだけを取り除く",
+      description:
+        "`username.replace(/'/g, '')` のように、危険そうな1文字だけを削る案です。SQL構文を成立させる他の手段がないか考えてみてください。",
+      patch: wrongPatch(
+        INITIAL_CODE,
+        "    const sql = `SELECT * FROM users WHERE username = '${username}' AND password = '${password}'`;",
+        "    const sql = `SELECT * FROM users WHERE username = '${username.replace(/'/g, '')}' AND password = '${password.replace(/'/g, '')}'`;",
+      ),
+      isCorrect: false,
+    },
   ],
 };

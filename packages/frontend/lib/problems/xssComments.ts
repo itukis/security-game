@@ -176,5 +176,29 @@ export const xssComments: ProblemContent = {
       ),
       isCorrect: false,
     },
+    {
+      id: "limit-text-length",
+      title: "投稿テキストの長さだけを縛る",
+      description:
+        "`text.length > 200` を 400 で弾く案です。短い <img onerror=...> でも刺さるか考えてみてください。",
+      patch: wrongPatch(
+        INITIAL_CODE,
+        "  if (typeof author !== 'string' || typeof text !== 'string') {\n    return res.status(400).json({ ok: false, error: 'author and text must be strings' });\n  }",
+        "  if (typeof author !== 'string' || typeof text !== 'string') {\n    return res.status(400).json({ ok: false, error: 'author and text must be strings' });\n  }\n  if (author.length > 32 || text.length > 200) {\n    return res.status(400).json({ ok: false, error: 'too long' });\n  }",
+      ),
+      isCorrect: false,
+    },
+    {
+      id: "strip-angle-brackets",
+      title: "< と > だけを取り除く",
+      description:
+        "`text.replace(/[<>]/g, '')` のように、特定2文字だけを消す案です。属性値経由の onerror などで迂回できないか考えてみてください。",
+      patch: wrongPatch(
+        INITIAL_CODE,
+        "    .map((c) => `<div class=\"comment\"><b>${c.author}</b>: ${c.text}</div>`)",
+        "    .map((c) => `<div class=\"comment\"><b>${String(c.author).replace(/[<>]/g, '')}</b>: ${String(c.text).replace(/[<>]/g, '')}</div>`)",
+      ),
+      isCorrect: false,
+    },
   ],
 };

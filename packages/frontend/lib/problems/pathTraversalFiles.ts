@@ -139,5 +139,29 @@ export const pathTraversalFiles: ProblemContent = {
       ),
       isCorrect: false,
     },
+    {
+      id: "limit-name-length",
+      title: "ファイル名の長さを制限する",
+      description:
+        "`name.length > 64` を 400 で弾く案です。短い `../secret/flag.txt` でも刺さるか考えてください。",
+      patch: wrongPatch(
+        INITIAL_CODE,
+        "  const name = req.query.name;\n  const filePath = path.join(__dirname, 'public', name);",
+        "  const name = req.query.name;\n  if (typeof name !== 'string' || name.length > 64) {\n    return res.status(400).send('Bad Request');\n  }\n  const filePath = path.join(__dirname, 'public', name);",
+      ),
+      isCorrect: false,
+    },
+    {
+      id: "extension-whitelist",
+      title: "拡張子だけをホワイトリストする",
+      description:
+        "`.txt` のみ許可する案です。`../../secret/flag.txt` のような攻撃で拡張子チェックを通過できないか考えてみてください。",
+      patch: wrongPatch(
+        INITIAL_CODE,
+        "  const name = req.query.name;\n  const filePath = path.join(__dirname, 'public', name);",
+        "  const name = req.query.name;\n  if (typeof name !== 'string' || !name.toLowerCase().endsWith('.txt')) {\n    return res.status(400).send('Bad Request');\n  }\n  const filePath = path.join(__dirname, 'public', name);",
+      ),
+      isCorrect: false,
+    },
   ],
 };

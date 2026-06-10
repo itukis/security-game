@@ -18,13 +18,25 @@ import { usePreviewApply } from "@/components/challenge-playground/usePreviewApp
 import { usePatchVerification } from "@/components/challenge-playground/usePatchVerification";
 import { resetContainer } from "@/lib/api/challenges";
 import type { Challenge, PreviewServerStatus, VerifyResult } from "@/lib/challengeTypes";
-import { DIFFICULTY, type DifficultyMode } from "@/lib/difficultyConfig";
+import {
+  DIFFICULTY,
+  getAvailableModes,
+  getScoreCap,
+  type DifficultyMode,
+} from "@/lib/difficultyConfig";
 import { makePatch } from "@/lib/makePatch";
 
 export function useChallengePlaygroundState(challenge: Challenge): PlaygroundState {
   const toast = useToast();
-  const [mode, setMode] = useState<DifficultyMode>("editPreview");
+  const availableModes = useMemo(
+    () => getAvailableModes(challenge.difficulty),
+    [challenge.difficulty],
+  );
+  const [mode, setMode] = useState<DifficultyMode>(
+    availableModes.includes("editPreview") ? "editPreview" : availableModes[0],
+  );
   const difficulty = DIFFICULTY[mode];
+  const scoreCap = getScoreCap(mode, challenge.difficulty);
   const [attackState, setAttackState] = useState<"idle" | "running" | "success" | "failure">("idle");
   const [codeReviewed, setCodeReviewed] = useState(false);
   const [defenseState, setDefenseState] = useState<DefenseState>("idle");
@@ -46,7 +58,7 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
 
   const selectedPatch = challenge.patchOptions.find((patch) => patch.id === selectedPatchId);
   const hasAttacked = attackState === "success";
-  const isEditorMode = true;
+  const isEditorMode = difficulty.patchInput === "editor";
   const hasEditedCode = isEditorMode ? editorCode !== challenge.initialCode : false;
   const hasSelectedPatch = isEditorMode ? hasEditedCode : selectedPatchId !== null;
   const canSelectPatch = hasAttacked && codeReviewed;
@@ -64,7 +76,9 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
     : !codeReviewed
       ? "原因コードを確認すると、修正に進めます。"
       : !hasSelectedPatch
-        ? "コードを編集すると検証できます。"
+        ? isEditorMode
+          ? "コードを編集すると検証できます。"
+          : "修正案を1つ選ぶと検証できます。"
         : null;
 
   function resetPreviewApplyState() {
@@ -75,6 +89,9 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
   }
 
   function makeCurrentPatch() {
+    if (!isEditorMode) {
+      return selectedPatch?.patch;
+    }
     return makePatch(PATCH_FILE_PATH, challenge.initialCode, editorCode);
   }
 
@@ -96,7 +113,7 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
     setVerifyError(null);
     setLoadingStep(null);
     resetPreviewApplyState();
-    setScore((prev) => Math.max(prev, Math.min(difficulty.scoreCap, 25)));
+    setScore((prev) => Math.max(prev, Math.min(scoreCap, 25)));
   }
 
   function handleProceedToStep2() {
@@ -140,7 +157,7 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
     setVerifyError(null);
     setLoadingStep(null);
     resetPreviewApplyState();
-    setScore(hasAttacked ? Math.min(difficulty.scoreCap, 25) : 0);
+    setScore(hasAttacked ? Math.min(scoreCap, 25) : 0);
   }
 
   function handleBackToEditor() {
@@ -211,6 +228,7 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
   const handleSubmitPatch = usePatchVerification({
     challengeId: challenge.id,
     difficulty,
+    scoreCap,
     makeCurrentPatch,
     refreshPreviewAfterPatch,
     handleRevealHint,
@@ -226,13 +244,19 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
 
   const showLivePreview = isEditorMode && difficulty.showSite;
   const liveViewMode = challenge.liveViewMode ?? "iframe";
-  const selectedPatchTitle = hasEditedCode ? "編集済みコード" : undefined;
+  const selectedPatchTitle = isEditorMode
+    ? hasEditedCode
+      ? "編集済みコード"
+      : undefined
+    : selectedPatch?.title;
 
   return {
     model: {
       challenge,
       mode,
+      availableModes,
       difficulty,
+      scoreCap,
       attackState,
       codeReviewed,
       defenseState,

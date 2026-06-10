@@ -161,5 +161,29 @@ export const hardcodedSecrets: ProblemContent = {
       ),
       isCorrect: false,
     },
+    {
+      id: "base64-key",
+      title: "Base64 でエンコードして埋め込む",
+      description:
+        "`Buffer.from(ADMIN_API_KEY).toString('base64')` をHTMLに渡して、クライアントで `atob` する案です。難読化と暗号化の違いを考えてください。",
+      patch: wrongPatch(
+        INITIAL_CODE,
+        "    const API_KEY = '${ADMIN_API_KEY}';\n    fetch('/api/data', { headers: { 'Authorization': 'Bearer ' + API_KEY } })",
+        "    const API_KEY = atob('${Buffer.from(ADMIN_API_KEY).toString('base64')}');\n    fetch('/api/data', { headers: { 'Authorization': 'Bearer ' + API_KEY } })",
+      ),
+      isCorrect: false,
+    },
+    {
+      id: "block-devtools",
+      title: "ブラウザの右クリックだけ無効化する",
+      description:
+        "`document.addEventListener('contextmenu', e => e.preventDefault())` でView Sourceを防ぐ案です。View Source の他にもページのHTMLを見る方法は無いか考えてください。",
+      patch: wrongPatch(
+        INITIAL_CODE,
+        "    const API_KEY = '${ADMIN_API_KEY}';\n    fetch('/api/data', { headers: { 'Authorization': 'Bearer ' + API_KEY } })",
+        "    document.addEventListener('contextmenu', e => e.preventDefault());\n    const API_KEY = '${ADMIN_API_KEY}';\n    fetch('/api/data', { headers: { 'Authorization': 'Bearer ' + API_KEY } })",
+      ),
+      isCorrect: false,
+    },
   ],
 };
