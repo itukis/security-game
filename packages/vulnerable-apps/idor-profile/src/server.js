@@ -14,9 +14,16 @@ app.use((req, _res, next) => {
 });
 
 const PROFILES = {
-  'user-1': { id: 'user-1', name: 'Alice', email: 'alice@example.com', secret: 'public bio' },
-  'user-2': { id: 'user-2', name: 'Bob',   email: 'bob@example.com',   secret: 'CONFIDENTIAL: launch codes' },
-  'user-3': { id: 'user-3', name: 'Carol', email: 'carol@example.com', secret: 'CONFIDENTIAL: bank PIN 4823' },
+  'user-1':  { id: 'user-1',  name: 'Alice',   email: 'alice@example.com',   secret: 'public bio' },
+  'user-2':  { id: 'user-2',  name: 'Bob',     email: 'bob@example.com',     secret: 'CONFIDENTIAL: launch codes' },
+  'user-3':  { id: 'user-3',  name: 'Carol',   email: 'carol@example.com',   secret: 'CONFIDENTIAL: bank PIN 4823' },
+  'user-4':  { id: 'user-4',  name: 'Dave',    email: 'dave@example.com',    secret: 'CONFIDENTIAL: SSN 901-23-4567' },
+  'user-5':  { id: 'user-5',  name: 'Eve',     email: 'eve@example.com',     secret: 'CONFIDENTIAL: API key sk_live_9f3a2e7c1b' },
+  'user-6':  { id: 'user-6',  name: 'Frank',   email: 'frank@example.com',   secret: 'CONFIDENTIAL: internal salary $182,000' },
+  'user-7':  { id: 'user-7',  name: 'Grace',   email: 'grace@example.com',   secret: 'CONFIDENTIAL: 2FA seed JBSWY3DPEHPK3PXP' },
+  'user-8':  { id: 'user-8',  name: 'Heidi',   email: 'heidi@example.com',   secret: 'CONFIDENTIAL: medical record - prescription A123' },
+  'user-9':  { id: 'user-9',  name: 'Ivan',    email: 'ivan@example.com',    secret: 'CONFIDENTIAL: private message - "meeting at 21:00"' },
+  'user-10': { id: 'user-10', name: 'Judy',    email: 'judy@example.com',    secret: 'CONFIDENTIAL: admin master key adm_master_8f7e2d1c' },
 };
 
 app.get('/health', (_req, res) => {
