@@ -239,6 +239,54 @@ function formatErrorDetail(responseText: string) {
   }
 }
 
+export async function recordCompletion(
+  id: string,
+  score: number,
+  patch: string,
+): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  if (isStaticOnlyProblem(id)) return;
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return;
+
+  try {
+    const { error: upsertError } = await supabase
+      .from("completed_problems")
+      .upsert(
+        {
+          user_id: session.user.id,
+          problem_id: id,
+          score,
+          completed_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "user_id,problem_id",
+          ignoreDuplicates: false,
+        },
+      );
+    if (upsertError) {
+      console.warn("[recordCompletion] completed_problems upsert:", upsertError.message);
+    }
+
+    const { error: insertError } = await supabase
+      .from("submission_history")
+      .insert({
+        user_id: session.user.id,
+        problem_id: id,
+        passed: true,
+        patch,
+      });
+    if (insertError) {
+      console.warn("[recordCompletion] submission_history insert:", insertError.message);
+    }
+  } catch (err) {
+    console.warn("[recordCompletion] unexpected error:", err);
+  }
+}
+
 function wait(ms: number) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);

@@ -11,7 +11,7 @@ import { ProgressStepper } from "@/components/ProgressStepper";
 import { ResultPanel } from "@/components/ResultPanel";
 import { ScoreSummary } from "@/components/ScoreSummary";
 import { VulnerableAppPreview } from "@/components/VulnerableAppPreview";
-import { previewApplyPatch, resetContainer, verifyPatch } from "@/lib/api/challenges";
+import { previewApplyPatch, recordCompletion, resetContainer, verifyPatch } from "@/lib/api/challenges";
 import type {
   Challenge,
   PreviewServerStatus,
@@ -72,6 +72,10 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
     null,
   );
   const [hintsRevealed, setHintsRevealed] = useState(0);
+  const [openedHintIndices, setOpenedHintIndices] = useState<Set<number>>(
+    () => new Set(),
+  );
+  const manualHintsRevealed = openedHintIndices.size;
   // Step 1 no longer auto-advances to Step 2 when the attack succeeds —
   // the user must explicitly click "次へ" so they can keep poking at the
   // live preview after the first successful exploit.
@@ -135,6 +139,7 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
     handleResetMission();
     setEditorCode(challenge.initialCode);
     setHintsRevealed(0);
+    setOpenedHintIndices(new Set());
     resetPreviewApplyState();
   }
 
@@ -219,6 +224,8 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
     setLoadingStep(null);
     setScore(0);
     setCompletedAt(null);
+    setHintsRevealed(0);
+    setOpenedHintIndices(new Set());
     resetPreviewApplyState();
     setPreviewAutoTestNonce(0);
     // Safety net: the post-verify reset can get skipped (orchestrator restart,
@@ -228,7 +235,28 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
   }
 
   function handleRevealHint() {
-    setHintsRevealed((n) => Math.min(challenge.hints.length, n + 1));
+    setHintsRevealed((n) => {
+      const next = Math.min(challenge.hints.length, n + 1);
+      if (next > n) {
+        // The hint at index `n` just became visible.
+        setOpenedHintIndices((prev) => {
+          if (prev.has(n)) return prev;
+          const copy = new Set(prev);
+          copy.add(n);
+          return copy;
+        });
+      }
+      return next;
+    });
+  }
+
+  function handleHintBodyOpened(index: number) {
+    setOpenedHintIndices((prev) => {
+      if (prev.has(index)) return prev;
+      const copy = new Set(prev);
+      copy.add(index);
+      return copy;
+    });
   }
 
   async function postXssPreviewPayload() {
@@ -341,11 +369,20 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
 
       setVerifyResult(result);
       setDefenseState(result.passed ? "success" : "failure");
+      const HINT_PENALTY_PER_REVEAL = 10;
+      const penalty = result.passed
+        ? manualHintsRevealed * HINT_PENALTY_PER_REVEAL
+        : 0;
       const calculated = result.passed ? 100 : 35;
-      setScore(Math.min(difficulty.scoreCap, calculated));
+      const finalScore = Math.max(
+        0,
+        Math.min(difficulty.scoreCap, calculated) - penalty,
+      );
+      setScore(finalScore);
       if (result.passed) {
         setCompletedAt(Date.now());
         toast.success("問題をクリアしました！");
+        void recordCompletion(challenge.id, finalScore, patchString);
         if (difficulty.showSite) {
           void refreshPreviewAfterPatch("verified", 800);
           window.setTimeout(() => {
@@ -355,7 +392,8 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
       } else {
         toast.error("防御失敗");
         if (difficulty.hints === "onDemand") {
-          handleRevealHint();
+          // Auto-revealed hints after a failed verify should NOT cost score.
+          setHintsRevealed((n) => Math.min(challenge.hints.length, n + 1));
         }
       }
     } catch (error) {
@@ -422,6 +460,8 @@ export function ChallengePlayground({ challenge }: { challenge: Challenge }) {
               mode={difficulty.hints}
               onReveal={difficulty.hints === "onDemand" ? handleRevealHint : undefined}
               canReveal={hintsRevealed < challenge.hints.length}
+              onHintOpened={handleHintBodyOpened}
+              openedCount={manualHintsRevealed}
             />
           ) : difficulty.hints === "onDemand" ? (
             <button
@@ -753,12 +793,16 @@ function HintsPanel({
   mode,
   onReveal,
   canReveal,
+  onHintOpened,
+  openedCount,
 }: {
   hints: string[];
   total: number;
   mode: "all" | "onDemand" | "none";
   onReveal?: () => void;
   canReveal: boolean;
+  onHintOpened?: (index: number) => void;
+  openedCount: number;
 }) {
   return (
     <aside className="relative min-w-0 rounded border border-amber-300/30 bg-zinc-950 p-3">
@@ -776,12 +820,18 @@ function HintsPanel({
           </button>
         ) : null}
       </div>
+      {openedCount > 0 ? (
+        <p className="mt-1 text-[10px] leading-4 text-amber-200/70">
+          クリア時 -{openedCount * 10} 点（開いたヒント分）
+        </p>
+      ) : null}
       <ul className="mt-2 grid gap-1.5">
         {hints.map((hint, i) => (
           <HintItem
             key={`${i}:${hint.slice(0, 12)}`}
             index={i}
             text={hint}
+            onOpen={onHintOpened}
           />
         ))}
       </ul>
@@ -789,15 +839,31 @@ function HintsPanel({
   );
 }
 
-function HintItem({ index, text }: { index: number; text: string }) {
+function HintItem({
+  index,
+  text,
+  onOpen,
+}: {
+  index: number;
+  text: string;
+  onOpen?: (index: number) => void;
+}) {
   const [open, setOpen] = useState(false);
   const bodyId = `hint-body-${index}`;
+
+  function handleToggle() {
+    const next = !open;
+    setOpen(next);
+    if (next) {
+      onOpen?.(index);
+    }
+  }
 
   return (
     <li>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={handleToggle}
         aria-expanded={open}
         aria-controls={bodyId}
         className="flex w-full items-center gap-2 rounded border border-amber-300/20 bg-black/20 px-2 py-1.5 text-left text-xs leading-5 text-zinc-200 transition hover:border-amber-300/40 hover:bg-amber-300/10"
