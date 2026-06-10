@@ -1,0 +1,15 @@
+--- a/src/server.js
++++ b/src/server.js
+@@ -9,7 +9,11 @@
+ // like /login-success?redirect=https://evil.example.com to bounce victims
+ // to phishing pages after a legitimate-looking login.
+ app.get('/login-success', (req, res) => {
+-  const redirectTo = req.query.redirect || '/dashboard';
++  const raw = req.query.redirect || '/dashboard';
++  const redirectTo = typeof raw === 'string' ? raw : '/dashboard';
++  if (!redirectTo.startsWith('/') || redirectTo.startsWith('//')) {
++    return res.status(400).send('Bad Request');
++  }
+   res.redirect(redirectTo);
+ });
+

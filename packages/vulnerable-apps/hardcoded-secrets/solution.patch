@@ -1,0 +1,22 @@
+--- a/src/server.js
++++ b/src/server.js
+@@ -17,14 +17,17 @@
+   <h1>Dashboard</h1>
+   <p id="data"></p>
+   <script>
+-    const API_KEY = '${ADMIN_API_KEY}';
+-    fetch('/api/data', { headers: { 'Authorization': 'Bearer ' + API_KEY } })
++    fetch('/api/data-proxy')
+       .then(r => r.json())
+       .then(d => document.getElementById('data').textContent = d.public);
+   </script>
+ </body></html>`);
+ });
+
++app.get('/api/data-proxy', (_req, res) => {
++  res.json({ public: DATA.public });
++});
++
+ app.get('/api/data', (req, res) => {
+   const auth = req.headers.authorization;
+   if (auth === `Bearer ${ADMIN_API_KEY}`) {

@@ -53,6 +53,78 @@ services:
           memory: 256m
           cpus: "0.5"
 
+  csrf-transfer:
+    build:
+      context: ./packages/vulnerable-apps/csrf-transfer
+    container_name: arena-csrf-transfer
+    ports:
+      - "3006:3000"
+    networks:
+      - vuln-net
+    cap_add:
+      - NET_ADMIN
+    tmpfs:
+      - /tmp:size=10M
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
+  hardcoded-secrets:
+    build:
+      context: ./packages/vulnerable-apps/hardcoded-secrets
+    container_name: arena-hardcoded-secrets
+    ports:
+      - "3007:3000"
+    networks:
+      - vuln-net
+    cap_add:
+      - NET_ADMIN
+    tmpfs:
+      - /tmp:size=10M
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
+  open-redirect:
+    build:
+      context: ./packages/vulnerable-apps/open-redirect
+    container_name: arena-open-redirect
+    ports:
+      - "3008:3000"
+    networks:
+      - vuln-net
+    cap_add:
+      - NET_ADMIN
+    tmpfs:
+      - /tmp:size=10M
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
+  file-upload:
+    build:
+      context: ./packages/vulnerable-apps/file-upload
+    container_name: arena-file-upload
+    ports:
+      - "3009:3000"
+    networks:
+      - vuln-net
+    cap_add:
+      - NET_ADMIN
+    tmpfs:
+      - /tmp:size=10M
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
 networks:
   # Regular bridge so host port publishing works. Outbound internet from the
   # vulnerable apps is blocked at the container level by an iptables OUTPUT
