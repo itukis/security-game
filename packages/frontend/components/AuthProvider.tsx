@@ -12,9 +12,11 @@ type AuthContextValue = {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  displayName: string | null;
   signIn: (email: string, password: string) => AuthCallResult;
-  signUp: (email: string, password: string) => AuthCallResult;
+  signUp: (email: string, password: string, displayName?: string) => AuthCallResult;
   signOut: () => SignOutResult;
+  updateDisplayName: (name: string) => Promise<{ error: Error | null }>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -62,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return supabase.auth.signInWithPassword({ email, password });
   }, []);
 
-  const signUp = useCallback((email: string, password: string) => {
+  const signUp = useCallback((email: string, password: string, displayName?: string) => {
     if (!isSupabaseConfigured) {
       console.warn("Supabase not configured");
       return Promise.resolve({
@@ -71,7 +73,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     }
 
-    return supabase.auth.signUp({ email, password });
+    return supabase.auth.signUp({
+      email,
+      password,
+      options: displayName ? { data: { display_name: displayName } } : undefined,
+    });
+  }, []);
+
+  const updateDisplayName = useCallback(async (name: string) => {
+    if (!isSupabaseConfigured) {
+      return { error: new Error("Supabase not configured") };
+    }
+    const { error } = await supabase.auth.updateUser({ data: { display_name: name } });
+    return { error };
   }, []);
 
   const signOut = useCallback(() => {
@@ -84,8 +98,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, session, loading, signIn, signUp, signOut }),
-    [user, session, loading, signIn, signUp, signOut]
+    () => ({
+      user,
+      session,
+      loading,
+      displayName: (user?.user_metadata?.display_name as string | undefined) ?? null,
+      signIn,
+      signUp,
+      signOut,
+      updateDisplayName,
+    }),
+    [user, session, loading, signIn, signUp, signOut, updateDisplayName],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

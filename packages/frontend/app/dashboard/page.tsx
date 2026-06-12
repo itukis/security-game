@@ -93,7 +93,11 @@ export default function DashboardPage() {
   }
 
   const displayName =
-    dashboard?.profile.display_name || dashboard?.profile.email || user.email || "User";
+    (user.user_metadata?.display_name as string | undefined) ||
+    dashboard?.profile.display_name ||
+    dashboard?.profile.email ||
+    user.email ||
+    "User";
   const completed = dashboard?.completed ?? [];
   const recent = dashboard?.recentSubmissions ?? [];
 

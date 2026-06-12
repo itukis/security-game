@@ -7,6 +7,7 @@ import { PageError } from "@/components/PageError";
 import { Spinner } from "@/components/Spinner";
 import { SupabaseRequiredNotice } from "@/components/SupabaseRequiredNotice";
 import { useAuth } from "@/components/AuthProvider";
+import { useToast } from "@/components/Toast";
 import { getDashboard, type DashboardResponse } from "@/lib/api";
 import { classifyError, type ErrorKind } from "@/lib/errors";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -83,11 +84,14 @@ const BADGES: BadgeConfig[] = [
 type BadgeItem = Omit<BadgeConfig, "check"> & { unlocked: boolean };
 
 export default function ProfilePage() {
-  const { user, loading } = useAuth();
+  const { user, loading, updateDisplayName } = useAuth();
+  const toast = useToast();
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
   const [errorKind, setErrorKind] = useState<ErrorKind | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [nameInput, setNameInput] = useState("");
+  const [nameSaving, setNameSaving] = useState(false);
 
   useEffect(() => {
     if (!isSupabaseConfigured || !user) return;
@@ -113,6 +117,12 @@ export default function ProfilePage() {
       active = false;
     };
   }, [user, retryCount]);
+
+  useEffect(() => {
+    if (user) {
+      setNameInput((user.user_metadata?.display_name as string | undefined) ?? "");
+    }
+  }, [user]);
 
   if (!isSupabaseConfigured) {
     return <SupabaseRequiredNotice />;
@@ -149,8 +159,27 @@ export default function ProfilePage() {
     );
   }
 
+  const currentDisplayName =
+    (user.user_metadata?.display_name as string | undefined) || null;
   const email = dashboard?.profile.email ?? user.email ?? "-";
   const memberSince = formatMemberSince(user.created_at);
+
+  async function handleSaveName(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmed = nameInput.trim();
+    if (trimmed.length < 2 || trimmed.length > 50) {
+      toast.error("表示名は2〜50文字で入力してください。");
+      return;
+    }
+    setNameSaving(true);
+    const { error } = await updateDisplayName(trimmed);
+    setNameSaving(false);
+    if (error) {
+      toast.error(`保存に失敗しました：${error.message}`);
+    } else {
+      toast.success("表示名を更新しました");
+    }
+  }
   const completedCount = dashboard?.completedCount ?? 0;
   const totalSubmissions = dashboard?.recentSubmissions.length ?? 0;
   const passedCount =
@@ -188,6 +217,7 @@ export default function ProfilePage() {
             アカウント情報
           </h2>
           <dl className="grid gap-0 divide-y divide-zinc-800">
+            <StatRow label="表示名" value={currentDisplayName ?? "（未設定）"} />
             <StatRow label="メールアドレス" value={email} />
             <StatRow label="登録日" value={memberSince} />
             <StatRow label="クリア問題数" value={String(completedCount)} />
@@ -197,6 +227,36 @@ export default function ProfilePage() {
               value={totalSubmissions > 0 ? `${successRate}%` : "-"}
             />
           </dl>
+        </section>
+
+        <section className="mt-6 rounded-lg border border-zinc-700 bg-zinc-900/90 p-5">
+          <h2 className="mb-4 text-xs font-black uppercase tracking-[0.15em] text-zinc-500">
+            表示名を変更
+          </h2>
+          <form onSubmit={handleSaveName} className="flex items-end gap-3">
+            <label className="flex-1">
+              <span className="block text-sm font-semibold text-zinc-300">
+                新しい表示名
+              </span>
+              <input
+                type="text"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                minLength={2}
+                maxLength={50}
+                placeholder="2〜50文字"
+                className="mt-2 w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-cyan-300 focus:outline-none"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={nameSaving}
+              className="h-[38px] rounded border border-cyan-300/70 bg-cyan-300 px-4 text-sm font-black text-zinc-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {nameSaving ? "保存中..." : "保存"}
+            </button>
+          </form>
+          <p className="mt-2 text-xs text-zinc-500">2〜50文字。リーダーボードや挨拶欄に表示されます。</p>
         </section>
 
         <section className="mt-6">

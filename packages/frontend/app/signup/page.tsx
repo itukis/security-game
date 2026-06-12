@@ -13,6 +13,7 @@ export default function SignupPage() {
   const router = useRouter();
   const { signUp } = useAuth();
   const toast = useToast();
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -27,13 +28,18 @@ export default function SignupPage() {
     event.preventDefault();
     setError(null);
 
+    if (displayName.trim().length < 2 || displayName.trim().length > 50) {
+      setError("表示名は2〜50文字で入力してください。");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
 
     setLoading(true);
-    const { error: signUpError } = await signUp(email, password);
+    const { error: signUpError } = await signUp(email, password, displayName.trim());
 
     if (signUpError) {
       setError(signUpError.message);
@@ -59,6 +65,20 @@ export default function SignupPage() {
             </p>
 
             <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+              <label className="block text-sm font-semibold text-zinc-300">
+                Display Name
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  required
+                  minLength={2}
+                  maxLength={50}
+                  placeholder="2〜50文字"
+                  className="mt-2 w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-cyan-300 focus:outline-none"
+                />
+              </label>
+
               <label className="block text-sm font-semibold text-zinc-300">
                 Email
                 <input
