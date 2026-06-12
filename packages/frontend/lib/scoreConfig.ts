@@ -1,7 +1,6 @@
 export const SCORE_CONFIG = {
   base: 100,
   hintPenalty: 10,
-  attemptPenalty: 15,
   floor: 10,
   speedBonus: {
     enabled: false,
@@ -12,15 +11,11 @@ export const SCORE_CONFIG = {
 
 export function computeScore(input: {
   hintsUsed: number;
-  attempts: number;
   durationMs?: number;
 }): number {
-  const { base, hintPenalty, attemptPenalty, floor, speedBonus } = SCORE_CONFIG;
+  const { base, hintPenalty, floor, speedBonus } = SCORE_CONFIG;
 
-  let raw =
-    base -
-    input.hintsUsed * hintPenalty -
-    (input.attempts - 1) * attemptPenalty;
+  let raw = base - input.hintsUsed * hintPenalty;
 
   if (
     speedBonus.enabled &&
