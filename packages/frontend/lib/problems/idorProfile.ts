@@ -152,7 +152,7 @@ export const idorProfile: ProblemContent = {
       id: "obfuscate-id",
       title: "URLのIDを推測しづらい形式に変える",
       description:
-        "プロフィールのキーを `'user-1' → 'u_a8f3d2'` のような不規則文字列にする案です。攻撃者が他のIDを推測できなくなれば安全か考えてみてください。",
+        "プロフィールのキーを `'user-1' → 'u_a8f3d2'` のような不規則文字列にする案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "app.get('/profile/:id', (req, res) => {\n  const profile = PROFILES[req.params.id];",
@@ -164,7 +164,7 @@ export const idorProfile: ProblemContent = {
       id: "rate-limit-access",
       title: "短時間に連続アクセスされたら拒否する",
       description:
-        "リクエストの回数を IP 毎にカウントし、閾値を超えたら 429 を返す案です。1リクエストで他人の情報が取れる問題に効くかどうか考えてください。",
+        "リクエストの回数を IP 毎にカウントし、閾値を超えたら 429 を返す案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "app.get('/profile/:id', (req, res) => {\n  const profile = PROFILES[req.params.id];",

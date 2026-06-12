@@ -36,9 +36,8 @@ export const DIFFICULTY_LABELS: Record<DifficultyMode, string> = {
   editOnly: "コードのみ",
 };
 
-// Per-problem-difficulty score caps. Easy problems expose the multiple-choice
-// mode (60pt); review/advanced problems only support the editor modes and use
-// higher caps to reward the harder workflow.
+// Per-problem-difficulty score caps. Easy problems get the 選択肢 mode (60pt);
+// review/advanced problems only expose the editor modes with higher caps.
 const SCORE_CAPS: Record<Difficulty, Partial<Record<DifficultyMode, number>>> = {
   Easy: {
     multipleChoice: 60,

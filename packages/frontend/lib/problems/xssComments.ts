@@ -180,7 +180,7 @@ export const xssComments: ProblemContent = {
       id: "limit-text-length",
       title: "投稿テキストの長さだけを縛る",
       description:
-        "`text.length > 200` を 400 で弾く案です。短い <img onerror=...> でも刺さるか考えてみてください。",
+        "`text.length > 200` を 400 で弾く案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "  if (typeof author !== 'string' || typeof text !== 'string') {\n    return res.status(400).json({ ok: false, error: 'author and text must be strings' });\n  }",
@@ -192,7 +192,7 @@ export const xssComments: ProblemContent = {
       id: "strip-angle-brackets",
       title: "< と > だけを取り除く",
       description:
-        "`text.replace(/[<>]/g, '')` のように、特定2文字だけを消す案です。属性値経由の onerror などで迂回できないか考えてみてください。",
+        "`text.replace(/[<>]/g, '')` のように、出力直前で `<` と `>` を取り除く案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "    .map((c) => `<div class=\"comment\"><b>${c.author}</b>: ${c.text}</div>`)",

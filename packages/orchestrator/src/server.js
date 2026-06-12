@@ -21,6 +21,36 @@ const app = express();
 app.use(cors({ origin: 'http://localhost:3000' }));
 app.use(express.json({ limit: '1mb' }));
 
+const previewUseByUserProblem = new Set();
+
+function previewUseKey(userId, problemId) {
+  return `${userId}:${problemId}`;
+}
+
+function markPreviewUsed(user, problemId) {
+  if (!user) return;
+  previewUseByUserProblem.add(previewUseKey(user.id, problemId));
+}
+
+function clearPreviewUse(user, problemId) {
+  if (!user) return;
+  previewUseByUserProblem.delete(previewUseKey(user.id, problemId));
+}
+
+function resolveScoreMode({ user, problemId, requestedMode }) {
+  if (
+    user &&
+    previewUseByUserProblem.has(previewUseKey(user.id, problemId))
+  ) {
+    // Touching the live preview disqualifies stricter score modes.
+    return 'editPreview';
+  }
+  if (requestedMode === 'editOnly' || requestedMode === 'multipleChoice') {
+    return requestedMode;
+  }
+  return 'editPreview';
+}
+
 app.get('/health', async (req, res) => {
   const problemIds = Object.keys(PROBLEM_META);
   const checks = await Promise.allSettled(
@@ -82,12 +112,17 @@ app.post('/problems/:id/verify', optionalAuth, async (req, res) => {
     });
 
     if (req.user) {
+      const scoreMode = resolveScoreMode({
+        user: req.user,
+        problemId: id,
+        requestedMode: mode,
+      });
       const recording = await recordSubmission({
         userId: req.user.id,
         problemId: id,
         patch,
         passed: result.passed,
-        scoreMode: mode,
+        scoreMode,
         durationMs: result.attackAfter && result.attackAfter.durationMs,
       });
 
@@ -115,7 +150,7 @@ app.post('/problems/:id/verify', optionalAuth, async (req, res) => {
   }
 });
 
-app.post('/problems/:id/reset', async (req, res) => {
+app.post('/problems/:id/reset', optionalAuth, async (req, res) => {
   const { id } = req.params;
   if (!PROBLEM_META[id]) {
     return res.status(404).json({ error: `Problem not found: ${id}` });
@@ -123,6 +158,7 @@ app.post('/problems/:id/reset', async (req, res) => {
 
   try {
     await enqueueContainerMutation(() => resetProblemContainer(id));
+    clearPreviewUse(req.user, id);
     res.json({ reset: true });
   } catch (err) {
     console.error(`Reset failed for ${id}:`, err.message);
@@ -143,6 +179,7 @@ app.patch('/problems/:id/preview', optionalAuth, async (req, res) => {
       await resetProblemContainer(id);
       await applyPatch({ problemId: id, patchString: patch });
     });
+    markPreviewUsed(req.user, id);
     res.json({ applied: true });
   } catch (err) {
     const msg = err.message || 'Internal error';
@@ -164,6 +201,7 @@ app.post('/admin/reset', async (req, res) => {
   try {
     await runCompose(['down']);
     await runCompose(['up', '-d', '--build']);
+    previewUseByUserProblem.clear();
     res.json({ reset: true, durationMs: Date.now() - start });
   } catch (err) {
     console.error('Admin reset failed:', err.message);

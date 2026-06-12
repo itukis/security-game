@@ -140,7 +140,7 @@ export const cmdInjectionPing: ProblemContent = {
       id: "timeout-only",
       title: "実行時間に上限を付ける",
       description:
-        "`exec(..., { timeout: 2000 })` でコマンドを時間制限する案です。短時間で完了するコマンドでも刺さるか考えてください。",
+        "`exec(..., { timeout: 2000 })` でコマンドを時間制限する案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "  exec(`ping -c 1 ${host}`, (err, stdout, stderr) => {",
@@ -152,7 +152,7 @@ export const cmdInjectionPing: ProblemContent = {
       id: "filter-output",
       title: "レスポンスから機密情報を伏字にする",
       description:
-        "`stdout.replace(/root|passwd/g, '***')` のように、出力側から特定語を消す案です。出力以外の経路で被害が出ないか考えてください。",
+        "`stdout.replace(/root|passwd/g, '***')` のように、出力側から特定語を伏字に置換する案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "    res.json({ output: stdout || stderr });",

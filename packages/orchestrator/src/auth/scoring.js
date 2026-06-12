@@ -1,12 +1,42 @@
 const { getServerClient } = require('./supabaseClient');
 
-const SCORE_BY_MODE = {
-  editPreview: 200,
-  editOnly: 2500,
+// Mirrors packages/frontend/lib/difficultyConfig.ts SCORE_CAPS. Keep in sync.
+const SCORE_CAPS = {
+  Easy: {
+    multipleChoice: 60,
+    editPreview: 80,
+    editOnly: 100,
+  },
+  Medium: {
+    editPreview: 200,
+    editOnly: 250,
+  },
+  Hard: {
+    editPreview: 200,
+    editOnly: 250,
+  },
 };
 
-function scoreForMode(scoreMode, fallbackScore) {
-  return SCORE_BY_MODE[scoreMode] || fallbackScore;
+const HARD_PROBLEM_IDS = new Set([
+  'review-support-portal',
+  'review-account-workflow',
+  'review-file-workbench',
+]);
+
+const VALID_SCORE_MODES = new Set(['multipleChoice', 'editPreview', 'editOnly']);
+const DEFAULT_SCORE_MODE = 'editPreview';
+
+function getDifficulty(problemId) {
+  return HARD_PROBLEM_IDS.has(problemId) ? 'Hard' : 'Easy';
+}
+
+function normalizeScoreMode(scoreMode) {
+  return VALID_SCORE_MODES.has(scoreMode) ? scoreMode : DEFAULT_SCORE_MODE;
+}
+
+function computeScore({ scoreMode, problemId }) {
+  const mode = normalizeScoreMode(scoreMode);
+  return SCORE_CAPS[getDifficulty(problemId)]?.[mode] ?? null;
 }
 
 async function recordSubmission({ userId, problemId, patch, passed, scoreMode, durationMs }) {
@@ -39,15 +69,24 @@ async function recordSubmission({ userId, problemId, patch, passed, scoreMode, d
     return { recorded: true, firstClear: false, score: null };
   }
 
-  const { data: problem, error: problemError } = await supabase
-    .from('problems')
-    .select('base_score')
-    .eq('id', problemId)
-    .single();
+  const computedScore = computeScore({ scoreMode, problemId });
 
-  if (problemError || !problem) {
-    console.error('Failed to load problem base score:', problemError && problemError.message);
-    return { recorded: true, firstClear: false, score: null };
+  let scoreToRecord = computedScore;
+  if (scoreToRecord == null) {
+    // Unknown scoreMode for this problem — fall back to the per-problem
+    // base_score so we never write null. Keeps backwards compat if the
+    // frontend ever sends a mode the orchestrator doesn't know.
+    const { data: problem, error: problemError } = await supabase
+      .from('problems')
+      .select('base_score')
+      .eq('id', problemId)
+      .single();
+
+    if (problemError || !problem) {
+      console.error('Failed to load problem base score:', problemError && problemError.message);
+      return { recorded: true, firstClear: false, score: null };
+    }
+    scoreToRecord = problem.base_score;
   }
 
   const { data: completed, error: completedError } = await supabase
@@ -55,7 +94,7 @@ async function recordSubmission({ userId, problemId, patch, passed, scoreMode, d
     .insert({
       user_id: userId,
       problem_id: problemId,
-      score: scoreForMode(scoreMode, problem.base_score),
+      score: scoreToRecord,
     })
     .select('score')
     .single();

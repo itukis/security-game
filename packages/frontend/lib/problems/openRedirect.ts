@@ -111,7 +111,7 @@ export const openRedirect: ProblemContent = {
       id: "block-http",
       title: "http:// のケースだけ拒否する",
       description:
-        "`redirectTo.startsWith('http://')` のときだけ 400 を返す案です。URLの別表現も見て判断してください。",
+        "`redirectTo.startsWith('http://')` のときに 400 を返す案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "  const redirectTo = req.query.redirect || '/dashboard';\n  res.redirect(redirectTo);",
@@ -143,7 +143,7 @@ export const openRedirect: ProblemContent = {
       id: "block-evil-substring",
       title: "evil という文字列が含まれていたら拒否",
       description:
-        "`/evil/i.test(redirectTo)` を 400 で弾く案です。攻撃者が任意のドメインを用意できることを思い出してください。",
+        "`/evil/i.test(redirectTo)` を 400 で弾く案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "  const redirectTo = req.query.redirect || '/dashboard';\n  res.redirect(redirectTo);",

@@ -111,6 +111,7 @@ export async function resetContainer(id: string): Promise<void> {
   try {
     const response = await fetch(`${API_BASE_URL}/problems/${id}/reset`, {
       method: "POST",
+      headers: { ...(await authHeader()) },
     });
     if (!response.ok) {
       // Best-effort cleanup. The next verify will reset anyway, so just log.

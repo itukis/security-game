@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import type { PatchOption } from "@/lib/challengeTypes";
 
 interface PatchSelectorProps {
@@ -8,7 +9,21 @@ interface PatchSelectorProps {
   onSelect: (id: string) => void;
 }
 
+// Fisher–Yates shuffle in-place on a copy. We re-shuffle whenever the options
+// array reference changes, which happens on a fresh mount (e.g., the user
+// re-entered Step 3 after switching modes or re-trying), so the display
+// order is randomized each time but stable across clicks within one attempt.
+function shuffle<T>(input: T[]): T[] {
+  const arr = input.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 export function PatchSelector({ options, selectedId, onSelect }: PatchSelectorProps) {
+  const shuffledOptions = useMemo(() => shuffle(options), [options]);
   return (
     <div className="grid min-w-0 gap-3">
       <div className="rounded border border-zinc-700 bg-zinc-950 p-3">
@@ -20,7 +35,7 @@ export function PatchSelector({ options, selectedId, onSelect }: PatchSelectorPr
         </p>
       </div>
       <ul role="radiogroup" aria-label="修正案" className="grid gap-2">
-        {options.map((option, index) => {
+        {shuffledOptions.map((option, index) => {
           const selected = option.id === selectedId;
           return (
             <li key={option.id}>

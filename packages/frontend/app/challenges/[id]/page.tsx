@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { ChallengePlayground } from "@/components/ChallengePlayground";
-import { GlossaryPanel } from "@/components/GlossaryPanel";
 import { Header } from "@/components/Header";
 import { getProblem, getProblems } from "@/lib/api/challenges";
 
@@ -58,7 +57,6 @@ export default async function ChallengeDetailPage({
           </div>
 
           <ChallengePlayground challenge={challenge} />
-          <GlossaryPanel />
         </section>
       </div>
     </main>

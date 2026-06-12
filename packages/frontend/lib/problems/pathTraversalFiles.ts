@@ -143,7 +143,7 @@ export const pathTraversalFiles: ProblemContent = {
       id: "limit-name-length",
       title: "ファイル名の長さを制限する",
       description:
-        "`name.length > 64` を 400 で弾く案です。短い `../secret/flag.txt` でも刺さるか考えてください。",
+        "`name.length > 64` を 400 で弾く案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "  const name = req.query.name;\n  const filePath = path.join(__dirname, 'public', name);",
@@ -155,7 +155,7 @@ export const pathTraversalFiles: ProblemContent = {
       id: "extension-whitelist",
       title: "拡張子だけをホワイトリストする",
       description:
-        "`.txt` のみ許可する案です。`../../secret/flag.txt` のような攻撃で拡張子チェックを通過できないか考えてみてください。",
+        "`.txt` で終わる名前のみ通す拡張子フィルタを足す案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "  const name = req.query.name;\n  const filePath = path.join(__dirname, 'public', name);",

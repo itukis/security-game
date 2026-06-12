@@ -125,7 +125,7 @@ export const sqliLogin: ProblemContent = {
       id: "raw-sql-trim",
       title: "実行前にSQL文字列を整える",
       description:
-        "`db.prepare(sql.trim()).get()` のように、組み立て済みSQLへ前処理を入れる案です。引用符入りの入力がどう扱われるか見比べてください。",
+        "`db.prepare(sql.trim()).get()` のように、組み立て済みSQLへ前処理を入れる案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "    const row = db.prepare(sql).get();",
@@ -145,7 +145,7 @@ export const sqliLogin: ProblemContent = {
       id: "hide-password",
       title: "失敗時レスポンスを少し変える",
       description:
-        "`res.json({ success: false, hint: 'try again' })` のように、レスポンス側だけを変える案です。",
+        "`res.json({ success: false, hint: 'try again' })` のように、失敗時のレスポンスにヒント文字列を追加する案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "      res.json({ success: false });",
@@ -157,7 +157,7 @@ export const sqliLogin: ProblemContent = {
       id: "limit-input-length",
       title: "入力の長さだけを制限する",
       description:
-        "`if (username.length > 32 || password.length > 32) ...` のように、文字数だけを縛る案です。短いペイロードでも刺さるか考えてみてください。",
+        "`if (username.length > 32 || password.length > 32) ...` のように、文字数を縛る案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "  if (!username || !password) {\n    return res.status(400).json({ success: false, error: 'Missing username or password' });\n  }",
@@ -169,7 +169,7 @@ export const sqliLogin: ProblemContent = {
       id: "strip-quotes",
       title: "シングルクォートだけを取り除く",
       description:
-        "`username.replace(/'/g, '')` のように、危険そうな1文字だけを削る案です。SQL構文を成立させる他の手段がないか考えてみてください。",
+        "`username.replace(/'/g, '')` のように、入力からシングルクォートを取り除いてからSQLに渡す案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "    const sql = `SELECT * FROM users WHERE username = '${username}' AND password = '${password}'`;",
