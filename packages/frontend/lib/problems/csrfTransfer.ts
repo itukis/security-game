@@ -163,7 +163,7 @@ export const csrfTransfer: ProblemContent = {
       id: "block-user-agent",
       title: "リクエストヘッダの種類で分ける",
       description:
-        "`req.headers['user-agent']` を見て、特定のクライアント名なら拒否する案です。ヘッダの信頼性も含めて判断してください。",
+        "`req.headers['user-agent']` を見て、特定のクライアント名なら 403 を返す案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "app.post('/transfer', (req, res) => {\n  const { to, amount } = req.body;",
@@ -175,7 +175,7 @@ export const csrfTransfer: ProblemContent = {
       id: "amount-cap",
       title: "送金額の上限を低く設定する",
       description:
-        "`amt > 100` の送金を 400 で弾く案です。少額を繰り返されたらどうなるか考えてください。",
+        "`amt > 100` の送金を 400 で弾く案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "  if (!to || !amt || amt <= 0) return res.status(400).json({ error: 'Invalid transfer' });",
