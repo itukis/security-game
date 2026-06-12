@@ -7,7 +7,7 @@ import type { DefenseState } from "@/components/challenge-playground/types";
 import { recordCompletion, verifyPatch } from "@/lib/api/challenges";
 import type { PreviewServerStatus, VerifyResult } from "@/lib/challengeTypes";
 import type { DifficultySettings } from "@/lib/difficultyConfig";
-import { computeScore, SCORE_CONFIG } from "@/lib/scoreConfig";
+import { SCORE_CONFIG } from "@/lib/scoreConfig";
 
 type ToastApi = {
   success: (message: string) => void;
@@ -75,10 +75,8 @@ export function usePatchVerification({
       setVerifyResult(result);
       setDefenseState(result.passed ? "success" : "failure");
 
-      // Scale computeScore's [floor..base] output proportionally to scoreCap.
-      const rawScore = computeScore({ hintsUsed: manualHintsRevealed });
       const nextScore = result.passed
-        ? Math.max(SCORE_CONFIG.floor, Math.round((rawScore / SCORE_CONFIG.base) * scoreCap))
+        ? Math.max(SCORE_CONFIG.floor, scoreCap - manualHintsRevealed * SCORE_CONFIG.hintPenalty)
         : Math.min(scoreCap, 35);
       setScore(nextScore);
 
