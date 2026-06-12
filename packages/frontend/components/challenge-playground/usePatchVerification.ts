@@ -4,9 +4,10 @@ import type { Dispatch, SetStateAction } from "react";
 import { VERIFY_LOADING_STEPS } from "@/components/challenge-playground/constants";
 import { wait } from "@/components/challenge-playground/previewHelpers";
 import type { DefenseState } from "@/components/challenge-playground/types";
-import { verifyPatch } from "@/lib/api/challenges";
+import { recordCompletion, verifyPatch } from "@/lib/api/challenges";
 import type { PreviewServerStatus, VerifyResult } from "@/lib/challengeTypes";
 import type { DifficultySettings } from "@/lib/difficultyConfig";
+import { computeScore, SCORE_CONFIG } from "@/lib/scoreConfig";
 
 type ToastApi = {
   success: (message: string) => void;
@@ -17,12 +18,13 @@ type UsePatchVerificationArgs = {
   challengeId: string;
   difficulty: DifficultySettings;
   scoreCap: number;
+  manualHintsRevealed: number;
   makeCurrentPatch: () => string | undefined;
   refreshPreviewAfterPatch: (
     nextStatus: PreviewServerStatus,
     delayMs?: number,
   ) => Promise<void>;
-  handleRevealHint: () => void;
+  handleAutoRevealHint: () => void;
   setCompletedAt: Dispatch<SetStateAction<number | null>>;
   setDefenseState: Dispatch<SetStateAction<DefenseState>>;
   setLoadingStep: Dispatch<SetStateAction<string | null>>;
@@ -37,9 +39,10 @@ export function usePatchVerification({
   challengeId,
   difficulty,
   scoreCap,
+  manualHintsRevealed,
   makeCurrentPatch,
   refreshPreviewAfterPatch,
-  handleRevealHint,
+  handleAutoRevealHint,
   setCompletedAt,
   setDefenseState,
   setLoadingStep,
@@ -52,6 +55,7 @@ export function usePatchVerification({
   return async function handleSubmitPatch() {
     const patchString = makeCurrentPatch();
     if (!patchString) return;
+
     setDefenseState("checking");
     setVerifyResult(null);
     setVerifyError(null);
@@ -70,17 +74,25 @@ export function usePatchVerification({
       ]);
       setVerifyResult(result);
       setDefenseState(result.passed ? "success" : "failure");
-      setScore(result.passed ? scoreCap : Math.min(scoreCap, 35));
+
+      // Scale computeScore's [floor..base] output proportionally to scoreCap.
+      const rawScore = computeScore({ hintsUsed: manualHintsRevealed });
+      const nextScore = result.passed
+        ? Math.max(SCORE_CONFIG.floor, Math.round((rawScore / SCORE_CONFIG.base) * scoreCap))
+        : Math.min(scoreCap, 35);
+      setScore(nextScore);
+
       if (result.passed) {
         setCompletedAt(Date.now());
         toast.success("問題をクリアしました！");
+        void recordCompletion(challengeId, nextScore, patchString);
         if (difficulty.showSite) {
           void refreshPreviewAfterPatch("verified", 800);
           window.setTimeout(() => setPreviewStatus("reset"), 15000);
         }
       } else {
         toast.error("防御失敗");
-        if (difficulty.hints === "onDemand") handleRevealHint();
+        if (difficulty.hints === "onDemand") handleAutoRevealHint();
       }
     } catch (error) {
       setDefenseState("error");
