@@ -66,16 +66,16 @@ export function RetestSummary({
       key="failed"
       role="status"
       aria-live="polite"
-      className="animate-attack-flash mt-5 rounded-lg border border-rose-300/50 bg-rose-300/10 p-4"
+      className="animate-attack-flash mt-5 min-w-0 overflow-hidden rounded-lg border border-rose-300/50 bg-rose-300/10 p-4"
     >
       <p className="text-lg font-black text-rose-100">✗ まだ脆弱性が残っています。</p>
       <p className="mt-2 text-sm leading-6 text-zinc-200">
         まだ攻撃が成立する可能性があります。
       </p>
       {stillPayload ? (
-        <p className="mt-2 text-xs leading-5 text-rose-100">
+        <p className="mt-2 min-w-0 text-xs leading-5 text-rose-100">
           再現できたペイロード:{" "}
-          <code className="rounded bg-black/30 px-2 py-0.5 font-mono text-rose-100">
+          <code className="inline-block max-w-full whitespace-pre-wrap break-all rounded bg-black/30 px-2 py-0.5 align-top font-mono text-rose-100">
             {stillPayload}
           </code>
         </p>
@@ -109,7 +109,7 @@ export function AttackOutcomeCard({
 
   return (
     <div
-      className={`rounded-lg border p-3 ${
+      className={`min-w-0 overflow-hidden rounded-lg border p-3 ${
         isSafe ? "border-emerald-300/30 bg-emerald-300/5" : "border-rose-300/30 bg-rose-300/5"
       }`}
     >
@@ -128,7 +128,7 @@ export function AttackOutcomeCard({
         </span>
       </div>
       {obj ? (
-        <dl className="mt-3 grid gap-2 text-sm">
+        <dl className="mt-3 grid min-w-0 gap-2 text-sm">
           {payload ? (
             <KV label="payload" value={payload} mono />
           ) : null}
@@ -138,7 +138,9 @@ export function AttackOutcomeCard({
           ) : null}
         </dl>
       ) : (
-        <p className="mt-3 text-sm text-zinc-300">{formatVerifyValue(outcome)}</p>
+        <p className="mt-3 min-w-0 whitespace-pre-wrap break-all text-sm text-zinc-300">
+          {formatVerifyValue(outcome)}
+        </p>
       )}
     </div>
   );
@@ -187,12 +189,12 @@ function KV({
   mono?: boolean;
 }) {
   return (
-    <div className="grid gap-1">
+    <div className="grid min-w-0 gap-1">
       <dt className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
         {label}
       </dt>
       <dd
-        className={`break-words text-sm leading-5 text-zinc-100 ${
+        className={`min-w-0 max-w-full whitespace-pre-wrap break-all text-sm leading-5 text-zinc-100 ${
           mono ? "font-mono" : ""
         }`}
       >

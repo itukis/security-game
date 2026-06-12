@@ -44,7 +44,7 @@ export function AttackPanel({
         key={hasSucceeded ? "succeeded" : "idle"}
         role="status"
         aria-live="polite"
-        className={`mt-4 rounded border p-4 font-mono text-sm leading-6 ${
+        className={`mt-4 min-w-0 overflow-hidden rounded border p-4 font-mono text-sm leading-6 ${
           hasSucceeded
             ? "animate-attack-flash border-rose-300/60 bg-rose-300/10"
             : "border-zinc-800 bg-zinc-950"
@@ -73,9 +73,9 @@ export function AttackPanel({
         ) : (
           <>
             <p className="text-zinc-500">$ automated-attack</p>
-            <p className="mt-3 text-zinc-300">
+            <p className="mt-3 min-w-0 text-zinc-300">
               使用ペイロード:{" "}
-              <span className="rounded bg-rose-400/10 px-2 py-1 text-rose-200">
+              <span className="inline-block max-w-full whitespace-pre-wrap break-all rounded bg-rose-400/10 px-2 py-1 align-top text-rose-200">
                 {attackPayload}
               </span>
             </p>
@@ -121,9 +121,13 @@ function ResultLine({
   }[tone];
 
   return (
-    <div className="grid gap-1 sm:grid-cols-[9rem_1fr] sm:items-start">
+    <div className="grid min-w-0 gap-1 sm:grid-cols-[9rem_1fr] sm:items-start">
       <dt className="text-zinc-500">{label}</dt>
-      <dd className={`break-words font-semibold ${toneClass}`}>{value}</dd>
+      <dd
+        className={`min-w-0 max-w-full whitespace-pre-wrap break-all font-semibold ${toneClass}`}
+      >
+        {value}
+      </dd>
     </div>
   );
 }
