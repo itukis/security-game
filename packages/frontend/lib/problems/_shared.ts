@@ -49,3 +49,21 @@ export function wrongPatch(
   }
   return makePatch("src/server.js", initial, initial.replace(find, replace));
 }
+
+// Same machinery as wrongPatch but for the correct option, supporting multiple
+// sequential replacements when the fix touches more than one region. Goes
+// through makePatch so the resulting unified diff applies cleanly under
+// `git apply --check` — hand-written hunks surfaced as NetworkError on Step 4.
+export function solutionPatch(
+  initial: string,
+  ...replacements: Array<[string, string]>
+): string {
+  let modified = initial;
+  for (const [find, replace] of replacements) {
+    if (!modified.includes(find)) {
+      throw new Error(`solutionPatch: source string not found in code`);
+    }
+    modified = modified.replace(find, replace);
+  }
+  return makePatch("src/server.js", initial, modified);
+}

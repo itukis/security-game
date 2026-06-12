@@ -1,4 +1,4 @@
-import { wrongPatch, type ProblemContent } from "./_shared";
+import { solutionPatch, wrongPatch, type ProblemContent } from "./_shared";
 
 const INITIAL_CODE = [
   "const express = require('express');",
@@ -25,24 +25,13 @@ const INITIAL_CODE = [
   "});",
 ].join("\n");
 
-const SOLUTION_PATCH = [
-  "--- a/src/server.js",
-  "+++ b/src/server.js",
-  "@@ -15,8 +15,12 @@",
-  " app.get('/download', (req, res) => {",
-  "-  const name = req.query.name;",
-  "-  const filePath = path.join(__dirname, 'public', name);",
-  "-  fs.readFile(filePath, 'utf8', (err, data) => {",
-  "+  const base = path.resolve(__dirname, 'public');",
-  "+  const target = path.resolve(base, req.query.name);",
-  "+  if (!target.startsWith(base + path.sep)) {",
-  "+    return res.status(400).send('Bad Request');",
-  "+  }",
-  "+  fs.readFile(target, 'utf8', (err, data) => {",
-  "     if (err) return res.status(404).send('File not found');",
-  "     res.send(data);",
-  "   });",
-].join("\n") + "\n";
+const SOLUTION_PATCH = solutionPatch(
+  INITIAL_CODE,
+  [
+    "  const name = req.query.name;\n  const filePath = path.join(__dirname, 'public', name);\n  fs.readFile(filePath, 'utf8', (err, data) => {",
+    "  const base = path.resolve(__dirname, 'public');\n  const target = path.resolve(base, req.query.name);\n  if (!target.startsWith(base + path.sep)) {\n    return res.status(400).send('Bad Request');\n  }\n  fs.readFile(target, 'utf8', (err, data) => {",
+  ],
+);
 
 export const pathTraversalFiles: ProblemContent = {
   id: "path-traversal-files",

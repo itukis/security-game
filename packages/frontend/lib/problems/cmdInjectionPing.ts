@@ -1,3 +1,4 @@
+import { makePatch } from "@/lib/makePatch";
 import { wrongPatch, type ProblemContent } from "./_shared";
 
 const INITIAL_CODE = [
@@ -18,28 +19,28 @@ const INITIAL_CODE = [
   "});",
 ].join("\n");
 
-const SOLUTION_PATCH = [
-  "--- a/src/server.js",
-  "+++ b/src/server.js",
-  "@@ -1,5 +1,5 @@",
-  " const express = require('express');",
-  "-const { exec } = require('child_process');",
-  "+const { execFile } = require('child_process');",
-  " ",
-  " const app = express();",
-  " app.use(express.json());",
-  "@@ -10,7 +10,11 @@",
-  " app.post('/ping', (req, res) => {",
-  "   const { host } = req.body;",
-  "-  exec(`ping -c 1 ${host}`, (err, stdout, stderr) => {",
-  "+  if (!/^[a-zA-Z0-9.\\-]+$/.test(host)) {",
-  "+    return res.status(400).json({ error: '無効なホスト名です' });",
-  "+  }",
-  "+  execFile('ping', ['-c', '1', host], (err, stdout, stderr) => {",
-  "     res.json({ output: stdout || stderr });",
-  "   });",
-  " });",
-].join("\n") + "\n";
+const FIXED_CODE = [
+  "const express = require('express');",
+  "const { execFile } = require('child_process');",
+  "",
+  "const app = express();",
+  "app.use(express.json());",
+  "",
+  "// VULNERABLE PING ENDPOINT",
+  "// host フィールドをシェルコマンド文字列に直接埋め込んでいるため、",
+  "// ; や && などのメタ文字で任意のコマンドを追加実行できてしまう。",
+  "app.post('/ping', (req, res) => {",
+  "  const { host } = req.body;",
+  "  if (!/^[a-zA-Z0-9.\\-]+$/.test(host)) {",
+  "    return res.status(400).json({ error: '無効なホスト名です' });",
+  "  }",
+  "  execFile('ping', ['-c', '1', host], (err, stdout, stderr) => {",
+  "    res.json({ output: stdout || stderr });",
+  "  });",
+  "});",
+].join("\n");
+
+const SOLUTION_PATCH = makePatch("src/server.js", INITIAL_CODE, FIXED_CODE);
 
 export const cmdInjectionPing: ProblemContent = {
   id: "cmd-injection-ping",

@@ -1,4 +1,4 @@
-import { wrongPatch, type ProblemContent } from "./_shared";
+import { solutionPatch, wrongPatch, type ProblemContent } from "./_shared";
 
 const INITIAL_CODE = [
   "const express = require('express');",
@@ -26,23 +26,13 @@ const INITIAL_CODE = [
   "app.listen(PORT, '0.0.0.0', () => console.log(`open-redirect listening on ${PORT}`));",
 ].join("\n");
 
-const SOLUTION_PATCH = [
-  "--- a/src/server.js",
-  "+++ b/src/server.js",
-  "@@ -9,7 +9,11 @@",
-  " // like /login-success?redirect=https://evil.example.com to bounce victims",
-  " // to phishing pages after a legitimate-looking login.",
-  " app.get('/login-success', (req, res) => {",
-  "-  const redirectTo = req.query.redirect || '/dashboard';",
-  "+  const raw = req.query.redirect || '/dashboard';",
-  "+  const redirectTo = typeof raw === 'string' ? raw : '/dashboard';",
-  "+  if (!redirectTo.startsWith('/') || redirectTo.startsWith('//')) {",
-  "+    return res.status(400).send('Bad Request');",
-  "+  }",
-  "   res.redirect(redirectTo);",
-  " });",
-  "",
-].join("\n") + "\n";
+const SOLUTION_PATCH = solutionPatch(
+  INITIAL_CODE,
+  [
+    "  const redirectTo = req.query.redirect || '/dashboard';\n  res.redirect(redirectTo);",
+    "  const raw = req.query.redirect || '/dashboard';\n  const redirectTo = typeof raw === 'string' ? raw : '/dashboard';\n  if (!redirectTo.startsWith('/') || redirectTo.startsWith('//')) {\n    return res.status(400).send('Bad Request');\n  }\n  res.redirect(redirectTo);",
+  ],
+);
 
 export const openRedirect: ProblemContent = {
   id: "open-redirect",

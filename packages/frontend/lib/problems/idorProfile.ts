@@ -1,4 +1,4 @@
-import { wrongPatch, type ProblemContent } from "./_shared";
+import { solutionPatch, wrongPatch, type ProblemContent } from "./_shared";
 
 const INITIAL_CODE = [
   "const express = require('express');",
@@ -44,20 +44,13 @@ const INITIAL_CODE = [
   "});",
 ].join("\n");
 
-const SOLUTION_PATCH = [
-  "--- a/src/server.js",
-  "+++ b/src/server.js",
-  "@@ -28,6 +28,9 @@",
-  " // owns it. Any logged-in user can read any other user's profile by changing",
-  " // the URL — classic IDOR (Insecure Direct Object Reference).",
-  " app.get('/profile/:id', (req, res) => {",
-  "+  if (req.userId !== req.params.id) {",
-  "+    return res.status(403).json({ error: 'Forbidden' });",
-  "+  }",
-  "   const profile = PROFILES[req.params.id];",
-  "   if (!profile) {",
-  "     return res.status(404).json({ error: 'Profile not found' });",
-].join("\n") + "\n";
+const SOLUTION_PATCH = solutionPatch(
+  INITIAL_CODE,
+  [
+    "app.get('/profile/:id', (req, res) => {\n  const profile = PROFILES[req.params.id];",
+    "app.get('/profile/:id', (req, res) => {\n  if (req.userId !== req.params.id) {\n    return res.status(403).json({ error: 'Forbidden' });\n  }\n  const profile = PROFILES[req.params.id];",
+  ],
+);
 
 export const idorProfile: ProblemContent = {
   id: "idor-profile",

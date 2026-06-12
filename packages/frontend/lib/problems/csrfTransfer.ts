@@ -1,4 +1,4 @@
-import { wrongPatch, type ProblemContent } from "./_shared";
+import { solutionPatch, wrongPatch, type ProblemContent } from "./_shared";
 
 const INITIAL_CODE = [
   "const express = require('express');",
@@ -42,40 +42,21 @@ const INITIAL_CODE = [
   "app.listen(PORT, '0.0.0.0', () => console.log(`csrf-transfer listening on ${PORT}`));",
 ].join("\n");
 
-const SOLUTION_PATCH = [
-  "--- a/src/server.js",
-  "+++ b/src/server.js",
-  "@@ -5,6 +5,8 @@",
-  "",
-  " let balance = { 'user-1': 10000, 'user-2': 500 };",
-  "",
-  "+const csrfTokens = new Set();",
-  "+",
-  " app.use((req, _res, next) => {",
-  "   req.userId = req.headers['x-user-id'] || 'user-1';",
-  "   next();",
-  "@@ -16,11 +18,22 @@",
-  "   res.json({ userId: req.userId, balance: balance[req.userId] || 0 });",
-  " });",
-  "",
-  "+app.get('/csrf-token', (_req, res) => {",
-  "+  const token = Math.random().toString(36).slice(2) + Date.now().toString(36);",
-  "+  csrfTokens.add(token);",
-  "+  res.json({ token });",
-  "+});",
-  "+",
-  " // VULNERABLE TRANSFER ENDPOINT",
-  " // Accepts POST without verifying that the request actually originated from the",
-  " // app's own UI. An attacker page can submit a hidden form on the victim's",
-  " // behalf and silently move money — classic CSRF (Cross-Site Request Forgery).",
-  " app.post('/transfer', (req, res) => {",
-  "+  const token = req.headers['x-csrf-token'];",
-  "+  if (!token || !csrfTokens.has(token)) {",
-  "+    return res.status(403).json({ error: 'CSRF token missing or invalid' });",
-  "+  }",
-  "+  csrfTokens.delete(token);",
-  "   const { to, amount } = req.body;",
-].join("\n") + "\n";
+const SOLUTION_PATCH = solutionPatch(
+  INITIAL_CODE,
+  [
+    "let balance = { 'user-1': 10000, 'user-2': 500 };\n\napp.use((req, _res, next) => {",
+    "let balance = { 'user-1': 10000, 'user-2': 500 };\n\nconst csrfTokens = new Set();\n\napp.use((req, _res, next) => {",
+  ],
+  [
+    "// VULNERABLE TRANSFER ENDPOINT",
+    "app.get('/csrf-token', (_req, res) => {\n  const token = Math.random().toString(36).slice(2) + Date.now().toString(36);\n  csrfTokens.add(token);\n  res.json({ token });\n});\n\n// VULNERABLE TRANSFER ENDPOINT",
+  ],
+  [
+    "app.post('/transfer', (req, res) => {\n  const { to, amount } = req.body;",
+    "app.post('/transfer', (req, res) => {\n  const token = req.headers['x-csrf-token'];\n  if (!token || !csrfTokens.has(token)) {\n    return res.status(403).json({ error: 'CSRF token missing or invalid' });\n  }\n  csrfTokens.delete(token);\n  const { to, amount } = req.body;",
+  ],
+);
 
 export const csrfTransfer: ProblemContent = {
   id: "csrf-transfer",

@@ -1,4 +1,4 @@
-import { wrongPatch, type ProblemContent } from "./_shared";
+import { solutionPatch, wrongPatch, type ProblemContent } from "./_shared";
 
 const INITIAL_CODE = [
   "const express = require('express');",
@@ -62,30 +62,17 @@ const INITIAL_CODE = [
   "});",
 ].join("\n");
 
-const SOLUTION_PATCH = [
-  "--- a/src/server.js",
-  "+++ b/src/server.js",
-  "@@ -24,6 +24,10 @@",
-  "   res.json({ ok: true, id });",
-  " });",
-  "",
-  "+function escapeHtml(s) {",
-  "+  return String(s).replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c]));",
-  "+}",
-  "+",
-  " // VULNERABLE RENDER ENDPOINT",
-  " // This intentionally concatenates user input directly into HTML.",
-  " // This is the vulnerability users must find and fix.",
-  "@@ -31,7 +35,7 @@",
-  "   res.setHeader('Content-Type', 'text/html');",
-  "",
-  "   const rendered = comments",
-  "-    .map((c) => `<div class=\"comment\"><b>${c.author}</b>: ${c.text}</div>`)",
-  "+    .map((c) => `<div class=\"comment\"><b>${escapeHtml(c.author)}</b>: ${escapeHtml(c.text)}</div>`)",
-  "     .join('\\n');",
-  "",
-  "   res.send(",
-].join("\n") + "\n";
+const SOLUTION_PATCH = solutionPatch(
+  INITIAL_CODE,
+  [
+    "// VULNERABLE RENDER ENDPOINT",
+    "function escapeHtml(s) {\n  return String(s).replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c]));\n}\n\n// VULNERABLE RENDER ENDPOINT",
+  ],
+  [
+    "    .map((c) => `<div class=\"comment\"><b>${c.author}</b>: ${c.text}</div>`)",
+    "    .map((c) => `<div class=\"comment\"><b>${escapeHtml(c.author)}</b>: ${escapeHtml(c.text)}</div>`)",
+  ],
+);
 
 export const xssComments: ProblemContent = {
   id: "xss-comments",

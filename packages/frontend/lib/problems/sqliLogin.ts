@@ -1,4 +1,4 @@
-import { wrongPatch, type ProblemContent } from "./_shared";
+import { solutionPatch, wrongPatch, type ProblemContent } from "./_shared";
 
 const INITIAL_CODE = [
   "const express = require('express');",
@@ -49,21 +49,13 @@ const INITIAL_CODE = [
   "});",
 ].join("\n");
 
-const SOLUTION_PATCH = [
-  "--- a/src/server.js",
-  "+++ b/src/server.js",
-  "@@ -27,8 +27,8 @@",
-  "   }",
-  "",
-  "   try {",
-  "-    const sql = `SELECT * FROM users WHERE username = '${username}' AND password = '${password}'`;",
-  "-    const row = db.prepare(sql).get();",
-  "+    const stmt = db.prepare('SELECT * FROM users WHERE username = ? AND password = ?');",
-  "+    const row = stmt.get(username, password);",
-  "",
-  "     if (row) {",
-  "       res.json({ success: true, user: { id: row.id, username: row.username } });",
-].join("\n") + "\n";
+const SOLUTION_PATCH = solutionPatch(
+  INITIAL_CODE,
+  [
+    "    const sql = `SELECT * FROM users WHERE username = '${username}' AND password = '${password}'`;\n    const row = db.prepare(sql).get();",
+    "    const stmt = db.prepare('SELECT * FROM users WHERE username = ? AND password = ?');\n    const row = stmt.get(username, password);",
+  ],
+);
 
 export const sqliLogin: ProblemContent = {
   id: "sqli-login",

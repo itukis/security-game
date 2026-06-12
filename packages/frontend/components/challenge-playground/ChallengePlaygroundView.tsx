@@ -1,6 +1,5 @@
 "use client";
 
-import { ProgressStepper } from "@/components/ProgressStepper";
 import {
   DifficultySwitcher,
   StickyMissionBar,
@@ -11,7 +10,7 @@ import type { PlaygroundState } from "@/components/challenge-playground/types";
 
 export function ChallengePlaygroundView({ state }: { state: PlaygroundState }) {
   const { model, actions } = state;
-  const { challenge, completedSteps, currentStep, mode, selectedPatchTitle, uiStatus } =
+  const { challenge, currentStep, mode, selectedPatchTitle, uiStatus } =
     model;
 
   return (
@@ -27,12 +26,6 @@ export function ChallengePlaygroundView({ state }: { state: PlaygroundState }) {
         currentStep={currentStep}
         selectedPatchTitle={selectedPatchTitle}
         status={uiStatus}
-      />
-
-      <ProgressStepper
-        completedSteps={completedSteps}
-        currentStep={currentStep}
-        step2Subtitle={challenge.stepCopy?.stepperStep2Subtitle}
       />
 
       <div className="relative isolate grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(240px,280px)_minmax(0,1fr)]">

@@ -1,4 +1,4 @@
-import { wrongPatch, type ProblemContent } from "./_shared";
+import { solutionPatch, wrongPatch, type ProblemContent } from "./_shared";
 
 const INITIAL_CODE = [
   "const express = require('express');",
@@ -42,30 +42,17 @@ const INITIAL_CODE = [
   "app.listen(PORT, '0.0.0.0', () => console.log(`hardcoded-secrets listening on ${PORT}`));",
 ].join("\n");
 
-const SOLUTION_PATCH = [
-  "--- a/src/server.js",
-  "+++ b/src/server.js",
-  "@@ -17,14 +17,17 @@",
-  "   <h1>Dashboard</h1>",
-  "   <p id=\"data\"></p>",
-  "   <script>",
-  "-    const API_KEY = '${ADMIN_API_KEY}';",
-  "-    fetch('/api/data', { headers: { 'Authorization': 'Bearer ' + API_KEY } })",
-  "+    fetch('/api/data-proxy')",
-  "       .then(r => r.json())",
-  "       .then(d => document.getElementById('data').textContent = d.public);",
-  "   </script>",
-  " </body></html>`);",
-  " });",
-  "",
-  "+app.get('/api/data-proxy', (_req, res) => {",
-  "+  res.json({ public: DATA.public });",
-  "+});",
-  "+",
-  " app.get('/api/data', (req, res) => {",
-  "   const auth = req.headers.authorization;",
-  "   if (auth === `Bearer ${ADMIN_API_KEY}`) {",
-].join("\n") + "\n";
+const SOLUTION_PATCH = solutionPatch(
+  INITIAL_CODE,
+  [
+    "    const API_KEY = '${ADMIN_API_KEY}';\n    fetch('/api/data', { headers: { 'Authorization': 'Bearer ' + API_KEY } })",
+    "    fetch('/api/data-proxy')",
+  ],
+  [
+    "app.get('/api/data', (req, res) => {",
+    "app.get('/api/data-proxy', (_req, res) => {\n  res.json({ public: DATA.public });\n});\n\napp.get('/api/data', (req, res) => {",
+  ],
+);
 
 export const hardcodedSecrets: ProblemContent = {
   id: "hardcoded-secrets",

@@ -1,4 +1,4 @@
-import { wrongPatch, type ProblemContent } from "./_shared";
+import { solutionPatch, wrongPatch, type ProblemContent } from "./_shared";
 
 const INITIAL_CODE = [
   "const express = require('express');",
@@ -44,42 +44,17 @@ const INITIAL_CODE = [
   "app.listen(PORT, '0.0.0.0', () => console.log(`file-upload listening on ${PORT}`));",
 ].join("\n");
 
-const SOLUTION_PATCH = [
-  "--- a/src/server.js",
-  "+++ b/src/server.js",
-  "@@ -7,10 +7,20 @@",
-  " const uploadDir = path.join(__dirname, 'uploads');",
-  " if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);",
-  "",
-  "+const ALLOWED_EXTS = new Set(['.txt', '.png', '.jpg']);",
-  "+",
-  " const storage = multer.diskStorage({",
-  "   destination: uploadDir,",
-  "-  filename: (_req, file, cb) => cb(null, file.originalname),",
-  "+  filename: (_req, file, cb) => {",
-  "+    const safe = path.basename(file.originalname).replace(/[^A-Za-z0-9._-]/g, '_');",
-  "+    cb(null, safe);",
-  "+  },",
-  " });",
-  "-const upload = multer({ storage });",
-  "+const upload = multer({",
-  "+  storage,",
-  "+  fileFilter: (_req, file, cb) => {",
-  "+    cb(null, ALLOWED_EXTS.has(path.extname(file.originalname).toLowerCase()));",
-  "+  },",
-  "+});",
-  "",
-  " app.get('/health', (_req, res) => res.json({ status: 'ok' }));",
-  "@@ -21,6 +31,6 @@",
-  " // file containing JavaScript and the browser will execute it when /files/X",
-  " // is opened — same-origin XSS via stored file.",
-  " app.post('/upload', upload.single('file'), (req, res) => {",
-  "-  if (!req.file) return res.status(400).json({ error: 'No file' });",
-  "+  if (!req.file) return res.status(400).json({ error: 'No file or disallowed extension' });",
-  "   res.json({ ok: true, path: `/files/${req.file.originalname}` });",
-  " });",
-  "",
-].join("\n") + "\n";
+const SOLUTION_PATCH = solutionPatch(
+  INITIAL_CODE,
+  [
+    "const storage = multer.diskStorage({\n  destination: uploadDir,\n  filename: (_req, file, cb) => cb(null, file.originalname),\n});\nconst upload = multer({ storage });",
+    "const ALLOWED_EXTS = new Set(['.txt', '.png', '.jpg']);\n\nconst storage = multer.diskStorage({\n  destination: uploadDir,\n  filename: (_req, file, cb) => {\n    const safe = path.basename(file.originalname).replace(/[^A-Za-z0-9._-]/g, '_');\n    cb(null, safe);\n  },\n});\nconst upload = multer({\n  storage,\n  fileFilter: (_req, file, cb) => {\n    cb(null, ALLOWED_EXTS.has(path.extname(file.originalname).toLowerCase()));\n  },\n});",
+  ],
+  [
+    "  if (!req.file) return res.status(400).json({ error: 'No file' });",
+    "  if (!req.file) return res.status(400).json({ error: 'No file or disallowed extension' });",
+  ],
+);
 
 export const fileUpload: ProblemContent = {
   id: "file-upload",
