@@ -7,11 +7,9 @@ import { LoginPreview } from "@/components/preview/LoginPreview";
 import { PingPreview } from "@/components/preview/PingPreview";
 import { ProfilePreview } from "@/components/preview/ProfilePreview";
 import { RedirectPreview } from "@/components/preview/RedirectPreview";
-import {
-  AccountWorkflowPreview,
-  FileWorkbenchPreview,
-  SupportPortalPreview,
-} from "@/components/preview/ReviewPreviews";
+import { AccountWorkflowPreview } from "@/components/preview/AccountWorkflowPreview";
+import { FileWorkbenchPreview } from "@/components/preview/FileWorkbenchPreview";
+import { SupportPortalPreview } from "@/components/preview/SupportPortalPreview";
 import { TransferPreview } from "@/components/preview/TransferPreview";
 import { UploadPreview } from "@/components/preview/UploadPreview";
 import {
