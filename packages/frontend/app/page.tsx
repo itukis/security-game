@@ -22,12 +22,18 @@ export default function HomePage() {
                 AIが生成したアプリ画面を新人ホワイトハッカーとして診断し、SQL Injection・XSS・IDOR・Path Traversal・Command Injection・CSRF・Information Exposure・Open Redirect・Insecure File Upload の9カテゴリの弱点を攻撃テストで確認し、原因コードを読んで、安全な修正案を選ぶセキュリティ学習ゲームです。
             </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Link
                 href="/challenges"
                 className="inline-flex h-12 items-center justify-center rounded border border-cyan-300/70 bg-cyan-300 px-5 text-sm font-black text-zinc-950 shadow-lg shadow-cyan-950/40 transition hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-100 focus:ring-offset-2 focus:ring-offset-zinc-950"
               >
                 問題を始める
+              </Link>
+              <Link
+                href="/glossary"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded border border-cyan-300/60 bg-transparent px-5 text-sm font-bold text-cyan-100 transition hover:border-cyan-200 hover:bg-cyan-300/10 focus:outline-none focus:ring-2 focus:ring-cyan-100 focus:ring-offset-2 focus:ring-offset-zinc-950"
+              >
+                📖 Words
               </Link>
               <div className="inline-flex h-12 items-center justify-center rounded border border-zinc-700 bg-zinc-900/80 px-5 text-sm font-semibold text-zinc-300">
                   SQLi / XSS / IDOR / Path Traversal / Command Injection / CSRF / Information Exposure / Open Redirect / Insecure File Upload の9問

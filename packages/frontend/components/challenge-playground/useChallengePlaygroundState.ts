@@ -32,11 +32,12 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
     () => getAvailableModes(challenge.difficulty),
     [challenge.difficulty],
   );
-  const [mode, setMode] = useState<DifficultyMode>(() =>
-    availableModes.includes("editPreview") ? "editPreview" : availableModes[0],
-  );
-  const difficulty = DIFFICULTY[mode];
-  const scoreCap = getScoreCap(mode, challenge.difficulty);
+  // getAvailableModes orders modes by assistance level, so the first entry
+  // (editPreview) is the right default.
+  const [mode, setMode] = useState<DifficultyMode>(() => availableModes[0]);
+  const activeMode = availableModes.includes(mode) ? mode : availableModes[0];
+  const difficulty = DIFFICULTY[activeMode];
+  const scoreCap = getScoreCap(activeMode, challenge.difficulty);
   const [attackState, setAttackState] = useState<"idle" | "running" | "success" | "failure">("idle");
   const [codeReviewed, setCodeReviewed] = useState(false);
   const [defenseState, setDefenseState] = useState<DefenseState>("idle");
@@ -104,13 +105,15 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
   }
 
   function handleModeChange(next: DifficultyMode) {
-    if (next === mode) return;
+    if (next === activeMode) return;
     setMode(next);
     // handleResetMission already restores editorCode and preview state;
     // only hint/attempt state needs to be reset here because mission reset
     // intentionally preserves it.
     handleResetMission();
+    setEditorCode(challenge.initialCode);
     setHintsRevealed(0);
+    resetPreviewApplyState();
     setManualHintsRevealed(0);
     setOpenedHintIndices(new Set());
   }
@@ -285,7 +288,7 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
   return {
     model: {
       challenge,
-      mode,
+      mode: activeMode,
       availableModes,
       difficulty,
       scoreCap,

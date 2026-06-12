@@ -1,8 +1,17 @@
 import Link from "next/link";
-import type { Challenge } from "@/lib/challengeTypes";
+import type { Challenge, Difficulty } from "@/lib/challengeTypes";
+
+const TIME_ESTIMATE: Record<Difficulty, string> = {
+  Easy: "5〜10分",
+  Medium: "10〜20分",
+  // Composite reviews bundle 3 separate vulns + a code read, so a single
+  // 5〜10 minute window doesn't survive contact with the workflow.
+  Hard: "20〜30分",
+};
 
 export function ChallengeCard({ challenge }: { challenge: Challenge }) {
   const isAvailable = challenge.status === "available";
+  const timeEstimate = TIME_ESTIMATE[challenge.difficulty];
 
   return (
     <article className="flex min-h-72 flex-col justify-between rounded-lg border border-zinc-700 bg-zinc-900/95 p-5 shadow-xl shadow-black/30">
@@ -27,7 +36,7 @@ export function ChallengeCard({ challenge }: { challenge: Challenge }) {
         <div className="mt-4 grid gap-3 rounded border border-zinc-800 bg-black p-3 text-sm">
           <div>
             <p className="font-bold text-cyan-100">所要時間目安</p>
-            <p className="mt-1 text-zinc-400">5〜10分</p>
+            <p className="mt-1 text-zinc-400">{timeEstimate}</p>
           </div>
           <div>
             <p className="font-bold text-amber-100">学べること</p>

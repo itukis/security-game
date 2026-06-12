@@ -179,7 +179,7 @@ export const fileUpload: ProblemContent = {
       id: "limit-file-size",
       title: "ファイルサイズの上限だけを付ける",
       description:
-        "`multer({ storage, limits: { fileSize: 1024 * 1024 } })` でサイズだけを制限する案です。1KBの .html でも実行されるか考えてください。",
+        "`multer({ storage, limits: { fileSize: 1024 * 1024 } })` でサイズの上限を 1MB に設定する案です。",
       patch: wrongPatch(
         INITIAL_CODE,
         "const upload = multer({ storage });",
