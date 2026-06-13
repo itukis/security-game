@@ -182,6 +182,30 @@ function GlossaryCard({
   );
 }
 
+// Returns the list of page numbers (and "..." gap markers) to render.
+// Up to 7 pages: show all. Beyond that, always show first / last / current ± 1
+// with "..." between, so the bar stays single-row at 375px even if the corpus
+// grows past ~7 pages.
+function getPageWindow(
+  currentPage: number,
+  totalPages: number,
+): Array<number | "gap-left" | "gap-right"> {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+
+  const result: Array<number | "gap-left" | "gap-right"> = [1];
+  const left = Math.max(2, currentPage - 1);
+  const right = Math.min(totalPages - 1, currentPage + 1);
+
+  if (left > 2) result.push("gap-left");
+  for (let p = left; p <= right; p++) result.push(p);
+  if (right < totalPages - 1) result.push("gap-right");
+
+  result.push(totalPages);
+  return result;
+}
+
 function Pagination({
   currentPage,
   totalPages,
@@ -191,7 +215,7 @@ function Pagination({
   totalPages: number;
   onChange: (next: number) => void;
 }) {
-  const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+  const items = getPageWindow(currentPage, totalPages);
 
   return (
     <nav
@@ -202,25 +226,36 @@ function Pagination({
         type="button"
         onClick={() => onChange(currentPage - 1)}
         disabled={currentPage <= 1}
-        className="h-9 rounded border border-zinc-700 bg-zinc-950 px-3 text-xs font-bold text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-zinc-700 disabled:hover:text-zinc-200"
+        className="h-11 rounded border border-zinc-700 bg-zinc-950 px-3 text-xs font-bold text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-zinc-700 disabled:hover:text-zinc-200 sm:h-9"
       >
         ← 前へ
       </button>
-      {pages.map((p) => {
-        const active = p === currentPage;
+      {items.map((item) => {
+        if (item === "gap-left" || item === "gap-right") {
+          return (
+            <span
+              key={item}
+              aria-hidden
+              className="px-1 text-xs text-zinc-500"
+            >
+              …
+            </span>
+          );
+        }
+        const active = item === currentPage;
         return (
           <button
-            key={p}
+            key={item}
             type="button"
-            onClick={() => onChange(p)}
+            onClick={() => onChange(item)}
             aria-current={active ? "page" : undefined}
-            className={`h-9 min-w-9 rounded border px-3 text-xs font-black transition ${
+            className={`h-11 min-w-11 rounded border px-3 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 sm:h-9 sm:min-w-9 ${
               active
                 ? "border-cyan-300 bg-cyan-300/10 text-cyan-100 shadow-lg shadow-cyan-950/30"
                 : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-cyan-300/60 hover:text-cyan-100"
             }`}
           >
-            {p}
+            {item}
           </button>
         );
       })}
@@ -228,7 +263,7 @@ function Pagination({
         type="button"
         onClick={() => onChange(currentPage + 1)}
         disabled={currentPage >= totalPages}
-        className="h-9 rounded border border-zinc-700 bg-zinc-950 px-3 text-xs font-bold text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-zinc-700 disabled:hover:text-zinc-200"
+        className="h-11 rounded border border-zinc-700 bg-zinc-950 px-3 text-xs font-bold text-zinc-200 transition hover:border-cyan-300/60 hover:text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-zinc-700 disabled:hover:text-zinc-200 sm:h-9"
       >
         次へ →
       </button>

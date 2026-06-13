@@ -7,7 +7,7 @@ const MonacoEditor = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-[460px] items-center justify-center rounded border border-zinc-700 bg-zinc-950 text-sm text-zinc-500">
+      <div className="flex h-[320px] items-center justify-center rounded border border-zinc-700 bg-zinc-950 text-sm text-zinc-500 sm:h-[460px]">
         エディタを読み込み中...
       </div>
     ),
@@ -20,19 +20,21 @@ interface CodeEditorProps {
   onChange: (code: string) => void;
   onReset: () => void;
   readOnly?: boolean;
-  height?: number;
 }
 
 // Controlled Monaco wrapper. The parent owns the editor buffer in
 // `value`. To reset, the parent calls `onReset` and sets `value` back
 // to the seed; we forward the new value to Monaco via the `value` prop.
+//
+// Height is fixed at 320px on phones / 460px from sm: up. Touch keyboards on
+// iOS/Android eat the bottom half of the viewport, so a single 460px target
+// crowds the editor off-screen on mobile.
 export function CodeEditor({
   value,
   language = "javascript",
   onChange,
   onReset,
   readOnly = false,
-  height = 460,
 }: CodeEditorProps) {
   function handleChange(next: string | undefined) {
     onChange(next ?? "");
@@ -64,10 +66,7 @@ export function CodeEditor({
         </div>
       </div>
 
-      <div
-        className="overflow-hidden rounded border border-zinc-800"
-        style={{ height }}
-      >
+      <div className="h-[320px] overflow-hidden rounded border border-zinc-800 sm:h-[460px]">
         <MonacoEditor
           height="100%"
           language={language}

@@ -35,6 +35,18 @@ export type ProblemContent = ProblemPresentation & {
   patchOptions: PatchOption[];
 };
 
+// Every vulnerable-app exposes its mutable entrypoint at this path. The
+// orchestrator's PROBLEMS map (see packages/orchestrator/src/applyPatch.js)
+// hard-codes the same value as `patchTarget`, and `git apply --include=` runs
+// against it. Centralizing here makes the contract visible and changeable in
+// one spot if that ever needs to vary per problem.
+const PATCH_TARGET = "src/server.js";
+
+function previewFind(find: string): string {
+  const trimmed = find.replace(/\s+/g, " ").trim();
+  return trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed;
+}
+
 // Build a wrong-option unified diff from initial code + a single replacement.
 // The hand-written `@@`-only hunks that this replaces failed `git apply --check`
 // in the orchestrator, so the user got a "通信エラー" toast instead of the
@@ -45,9 +57,11 @@ export function wrongPatch(
   replace: string,
 ): string {
   if (!initial.includes(find)) {
-    throw new Error(`wrongPatch: source string not found in initial code`);
+    throw new Error(
+      `wrongPatch: source string not found in initial code: "${previewFind(find)}"`,
+    );
   }
-  return makePatch("src/server.js", initial, initial.replace(find, replace));
+  return makePatch(PATCH_TARGET, initial, initial.replace(find, replace));
 }
 
 // Same machinery as wrongPatch but for the correct option, supporting multiple
@@ -59,11 +73,14 @@ export function solutionPatch(
   ...replacements: Array<[string, string]>
 ): string {
   let modified = initial;
-  for (const [find, replace] of replacements) {
+  for (let i = 0; i < replacements.length; i++) {
+    const [find, replace] = replacements[i];
     if (!modified.includes(find)) {
-      throw new Error(`solutionPatch: source string not found in code`);
+      throw new Error(
+        `solutionPatch: replacement[${i}] source not found in code: "${previewFind(find)}"`,
+      );
     }
     modified = modified.replace(find, replace);
   }
-  return makePatch("src/server.js", initial, modified);
+  return makePatch(PATCH_TARGET, initial, modified);
 }
