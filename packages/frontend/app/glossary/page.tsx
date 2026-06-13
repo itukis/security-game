@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Header } from "@/components/Header";
 import { GLOSSARY_TERMS, type GlossaryTerm } from "@/lib/glossaryData";
@@ -44,16 +45,24 @@ export default function GlossaryPage() {
         <Header />
 
         <section className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-          <div className="border-b border-zinc-800 pb-6">
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-cyan-200">
-              Reference
-            </p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">
-              Words
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-300 sm:text-base">
-              セキュリティ用語 {GLOSSARY_TERMS.length} 選
-            </p>
+          <div className="flex flex-col gap-4 border-b border-zinc-800 pb-6 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-cyan-200">
+                Reference
+              </p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">
+                Words and Quiz
+              </h1>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-300 sm:text-base">
+                セキュリティ用語 {GLOSSARY_TERMS.length} 選
+              </p>
+            </div>
+            <Link
+              href="/glossary/quiz"
+              className="inline-flex h-11 items-center justify-center rounded border border-cyan-300/70 bg-cyan-300 px-5 text-sm font-black text-zinc-950 shadow-lg shadow-cyan-950/40 transition hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-100 focus:ring-offset-2 focus:ring-offset-zinc-950"
+            >
+              クイズを始める
+            </Link>
           </div>
 
           <div className="mt-6">
