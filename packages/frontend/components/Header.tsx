@@ -162,7 +162,7 @@ export function Header() {
             className="fixed inset-x-0 top-[76px] z-40 grid max-h-[calc(100dvh-76px)] gap-2 overflow-y-auto border-b border-zinc-800 bg-zinc-950 px-4 py-3 text-sm font-bold shadow-2xl shadow-black/60 md:hidden"
           >
             <Link href="/glossary" onClick={closeMenu} className={mobileLinkClass}>
-              Words
+              Words and Quiz
             </Link>
             {user ? (
               <>

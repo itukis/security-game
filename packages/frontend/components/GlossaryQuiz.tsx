@@ -20,6 +20,18 @@ type AnswerRecord = {
   skipped: boolean;
 };
 
+function cleanSummary(term: GlossaryTerm) {
+  return term.summary.trim();
+}
+
+// Hoisted: the candidate pool is a pure derivation of the static GLOSSARY_TERMS
+// and never changes at runtime. Computing it once at module scope keeps
+// buildQuiz / buildQuestion focused on the per-call logic.
+const QUIZ_CANDIDATES: GlossaryTerm[] = GLOSSARY_TERMS.filter(
+  (term) => cleanSummary(term).length > 0,
+);
+
+// Fisher-Yates over a copy. Pure; never mutates the input.
 function shuffle<T>(items: T[]): T[] {
   const next = [...items];
   for (let i = next.length - 1; i > 0; i -= 1) {
@@ -29,17 +41,32 @@ function shuffle<T>(items: T[]): T[] {
   return next;
 }
 
-function cleanSummary(term: GlossaryTerm) {
-  return term.summary.trim();
+// Pick `count` items from `items` uniformly at random without replacement, in
+// O(count) time using a partial Fisher-Yates. Avoids shuffling the whole list
+// when we only need the first 10.
+function pickRandom<T>(items: T[], count: number): T[] {
+  const pool = [...items];
+  const limit = Math.min(count, pool.length);
+  for (let i = 0; i < limit; i += 1) {
+    const j = i + Math.floor(Math.random() * (pool.length - i));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, limit);
 }
 
-function quizCandidates() {
-  return GLOSSARY_TERMS.filter((term) => cleanSummary(term).length > 0);
+function getCorrectSummary(question: QuizQuestion) {
+  return cleanSummary(question.term);
 }
 
-function buildQuestion(term: GlossaryTerm, candidates: GlossaryTerm[]): QuizQuestion {
-  const correctSummary = cleanSummary(term);
-  const usedSummaries = new Set([correctSummary]);
+// Build a single question. Returns null if we cannot assemble OPTION_COUNT
+// unique options for this term — buildQuiz then tries the next candidate so
+// the user always gets a full QUESTION_COUNT quiz.
+function tryBuildQuestion(
+  term: GlossaryTerm,
+  candidates: GlossaryTerm[],
+): QuizQuestion | null {
+  const correctText = cleanSummary(term);
+  const usedSummaries = new Set([correctText]);
   const wrongOptions = shuffle(candidates)
     .filter((candidate) => candidate.no !== term.no)
     .map(cleanSummary)
@@ -50,23 +77,28 @@ function buildQuestion(term: GlossaryTerm, candidates: GlossaryTerm[]): QuizQues
     })
     .slice(0, OPTION_COUNT - 1);
 
+  if (wrongOptions.length < OPTION_COUNT - 1) return null;
+
   return {
     id: `${term.no}-${term.term}`,
     term,
-    options: shuffle([correctSummary, ...wrongOptions]),
+    options: shuffle([correctText, ...wrongOptions]),
   };
 }
 
 function buildQuiz(): QuizQuestion[] {
-  const candidates = quizCandidates();
-  return shuffle(candidates)
-    .map((term) => buildQuestion(term, candidates))
-    .filter((question) => question.options.length === OPTION_COUNT)
-    .slice(0, QUESTION_COUNT);
-}
-
-function correctSummary(question: QuizQuestion) {
-  return cleanSummary(question.term);
+  if (QUIZ_CANDIDATES.length === 0) return [];
+  // Walk a shuffled candidate list, accumulating successful questions until we
+  // hit QUESTION_COUNT. Skipping a candidate that cannot produce enough unique
+  // distractors prevents silent quiz shrinkage observed in the previous shape.
+  const ordering = pickRandom(QUIZ_CANDIDATES, QUIZ_CANDIDATES.length);
+  const questions: QuizQuestion[] = [];
+  for (const term of ordering) {
+    if (questions.length >= QUESTION_COUNT) break;
+    const question = tryBuildQuestion(term, QUIZ_CANDIDATES);
+    if (question) questions.push(question);
+  }
+  return questions;
 }
 
 export function GlossaryQuiz() {
@@ -84,12 +116,13 @@ export function GlossaryQuiz() {
     setHintVisible(false);
   }, []);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      startNewQuiz();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [startNewQuiz]);
+  // First-time setup: build the quiz immediately after mount. We intentionally
+  // defer the Math.random-backed shuffle to client-only to avoid a SSR/hydration
+  // mismatch where the server's first render would emit a different option
+  // order than the client's hydration pass. No setTimeout wrapping — the
+  // deferred timer caused a guaranteed loader flash on every restart.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => startNewQuiz(), [startNewQuiz]);
 
   const currentQuestion = questions?.[currentIndex] ?? null;
   const isFinished =
@@ -102,10 +135,14 @@ export function GlossaryQuiz() {
 
   function answerQuestion(selected: string) {
     if (!currentQuestion || currentAnswer) return;
+    // Defense in depth: the only caller is an in-question option button, but
+    // accepting an arbitrary string from a future caller would let the result
+    // pipeline see a 'selected' that does not appear in options. Reject it.
+    if (!currentQuestion.options.includes(selected)) return;
     setCurrentAnswer({
       question: currentQuestion,
       selected,
-      isCorrect: selected === correctSummary(currentQuestion),
+      isCorrect: selected === getCorrectSummary(currentQuestion),
       skipped: false,
     });
   }
@@ -147,13 +184,9 @@ export function GlossaryQuiz() {
     );
   }
 
-  if (!currentQuestion) {
-    return (
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900/95 p-6 text-sm text-zinc-300">
-        クイズを準備しています...
-      </div>
-    );
-  }
+  // questions is non-null with length > 0 and currentIndex < questions.length
+  // at this point, so currentQuestion is guaranteed defined.
+  if (!currentQuestion) return null;
 
   return (
     <section className="rounded-lg border border-cyan-300/20 bg-zinc-900/95 p-4 shadow-2xl shadow-cyan-950/20 sm:p-5">
@@ -162,9 +195,9 @@ export function GlossaryQuiz() {
           <p className="text-sm font-semibold uppercase tracking-[0.22em] text-cyan-200">
             Question {currentIndex + 1} / {questions.length}
           </p>
-          <h1 className="mt-2 break-words text-3xl font-black tracking-tight text-white sm:text-4xl">
+          <h2 className="mt-2 break-words text-3xl font-black tracking-tight text-white sm:text-4xl">
             {currentQuestion.term.term}
-          </h1>
+          </h2>
           <p className="mt-2 text-sm leading-6 text-zinc-400">
             この用語の一言説明として正しいものを選んでください。
           </p>
@@ -184,12 +217,12 @@ export function GlossaryQuiz() {
           <div className="grid gap-3">
             {currentQuestion.options.map((option, index) => {
               const isSelected = currentAnswer?.selected === option;
-              const isCorrect = option === correctSummary(currentQuestion);
+              const isCorrect = option === getCorrectSummary(currentQuestion);
               const showCorrect = currentAnswer && isCorrect;
               const showWrong = currentAnswer && isSelected && !isCorrect;
               return (
                 <button
-                  key={`${index}-${option}`}
+                  key={option}
                   type="button"
                   disabled={Boolean(currentAnswer)}
                   onClick={() => answerQuestion(option)}
@@ -298,7 +331,7 @@ function FeedbackPanel({
         </p>
       ) : null}
       <div className="mt-3">
-        <DetailBlock label="正しい説明">{correctSummary(question)}</DetailBlock>
+        <DetailBlock label="正しい説明">{getCorrectSummary(question)}</DetailBlock>
       </div>
       <p className="mt-3 text-xs leading-5 text-zinc-400">
         詳細解説と対策は結果画面の復習カードで確認できます。
@@ -377,15 +410,36 @@ function QuizResult({
   score: number;
   total: number;
 }) {
-  const [reviewIndex, setReviewIndex] = useState(0);
-  const missed = answers.filter((answer) => !answer.isCorrect && !answer.skipped);
-  const skipped = answers.filter((answer) => answer.skipped);
-  const reviewItems = answers.filter((answer) => !answer.isCorrect);
+  const missed = useMemo(
+    () => answers.filter((answer) => !answer.isCorrect && !answer.skipped),
+    [answers],
+  );
+  const skipped = useMemo(
+    () => answers.filter((answer) => answer.skipped),
+    [answers],
+  );
+  // Combined review queue: every non-correct answer (incorrect + skipped).
+  // The header copy below makes the inclusion explicit so the counter and the
+  // metric chips at the top don't look inconsistent.
+  const reviewItems = useMemo(
+    () => answers.filter((answer) => !answer.isCorrect),
+    [answers],
+  );
+
+  // Store the raw cursor as user-intent; clamp on read so the rendered
+  // reviewIndex is always within bounds even if the underlying reviewItems
+  // queue shrinks (hot reload, parent swap). Avoids the setState-in-effect
+  // pattern that the react-hooks lint correctly flags.
+  const [rawReviewIndex, setRawReviewIndex] = useState(0);
+  const reviewIndex =
+    reviewItems.length === 0
+      ? 0
+      : Math.min(Math.max(0, rawReviewIndex), reviewItems.length - 1);
   const activeReview = reviewItems[reviewIndex];
 
   function moveReview(delta: number) {
     if (reviewItems.length <= 1) return;
-    setReviewIndex((index) => {
+    setRawReviewIndex((index) => {
       const next = index + delta;
       if (next < 0) return reviewItems.length - 1;
       if (next >= reviewItems.length) return 0;
@@ -401,9 +455,9 @@ function QuizResult({
             <p className="text-sm font-semibold uppercase tracking-[0.22em] text-cyan-200">
               QUIZ RESULT
             </p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">
+            <h2 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">
               {total}問中 {score}問正解
-            </h1>
+            </h2>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-300">
               間違えた問題とスキップした問題を1問ずつ復習できます。
             </p>
@@ -425,9 +479,9 @@ function QuizResult({
             <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-100">
               Review
             </p>
-            <h2 className="mt-1 text-xl font-black text-white">
-              復習対象
-            </h2>
+            <h3 className="mt-1 text-xl font-black text-white">
+              復習: 間違い + スキップ
+            </h3>
           </div>
           {reviewItems.length > 0 ? (
             <div className="flex items-center gap-2">
@@ -549,9 +603,9 @@ function ReviewCard({ answer }: { answer: AnswerRecord }) {
   return (
     <article className="mt-4 min-w-0 rounded-lg border border-zinc-700 bg-black/45 p-4 shadow-inner shadow-black/30">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="break-words text-2xl font-black text-white drop-shadow">
+        <h4 className="break-words text-2xl font-black text-white drop-shadow">
           {term.term}
-        </h3>
+        </h4>
         <span
           className={`rounded border px-3 py-1 text-xs font-black uppercase tracking-[0.12em] shadow-sm ${
             answer.skipped
