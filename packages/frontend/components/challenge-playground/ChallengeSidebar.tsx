@@ -59,13 +59,18 @@ export function ChallengeSidebar({
           manualHintsRevealed={manualHintsRevealed}
         />
       ) : difficulty.hints === "onDemand" ? (
-        <button
-          type="button"
-          onClick={actions.handleRevealHint}
-          className="rounded border border-amber-300/40 bg-amber-300/10 px-3 py-2 text-left text-xs font-bold text-amber-100 transition hover:bg-amber-300/20"
-        >
-          💡 ヒントを表示する (1/{challenge.hints.length})
-        </button>
+        <div>
+          <button
+            type="button"
+            onClick={actions.handleRevealHint}
+            className="w-full rounded border border-amber-300/40 bg-amber-300/10 px-3 py-2 text-left text-xs font-bold text-amber-100 transition hover:bg-amber-300/20"
+          >
+            💡 ヒントを表示する (1/{challenge.hints.length})
+          </button>
+          <p className="mt-1.5 text-[10px] leading-4 text-amber-200/60">
+            ヒントを1つ開くごとに -10 点
+          </p>
+        </div>
       ) : null}
       <StepSummaryList
         attackedSummary={challenge.progress?.attackedSummary}
@@ -143,11 +148,14 @@ function HintsPanel({
           />
         ))}
       </ul>
-      {manualHintsRevealed > 0 ? (
-        <p className="mt-2 text-[10px] leading-4 text-amber-200/70">
-          クリア時 -{manualHintsRevealed * 10} 点（開いたヒント分）
-        </p>
-      ) : null}
+      <div className="mt-2 text-[10px] leading-4 text-amber-200/60">
+        <p>ヒントを1つ開くごとに -10 点</p>
+        {manualHintsRevealed > 0 ? (
+          <p className="mt-0.5 text-amber-200/80">
+            現在 -{manualHintsRevealed * 10} 点分の減点
+          </p>
+        ) : null}
+      </div>
     </aside>
   );
 }

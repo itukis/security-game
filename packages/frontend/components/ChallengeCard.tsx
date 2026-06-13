@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Challenge, Difficulty } from "@/lib/challengeTypes";
+import { getAvailableModes, getScoreCap } from "@/lib/difficultyConfig";
 
 const TIME_ESTIMATE: Record<Difficulty, string> = {
   Easy: "5〜10分",
@@ -9,9 +10,18 @@ const TIME_ESTIMATE: Record<Difficulty, string> = {
   Hard: "20〜30分",
 };
 
-export function ChallengeCard({ challenge }: { challenge: Challenge }) {
+export function ChallengeCard({
+  challenge,
+  clearedScore,
+}: {
+  challenge: Challenge;
+  clearedScore?: number;
+}) {
   const isAvailable = challenge.status === "available";
   const timeEstimate = TIME_ESTIMATE[challenge.difficulty];
+  const scoreCapsText = getAvailableModes(challenge.difficulty)
+    .map((mode) => getScoreCap(mode, challenge.difficulty))
+    .join(" / ");
 
   return (
     <article className="flex min-h-72 flex-col justify-between rounded-lg border border-zinc-700 bg-zinc-900/95 p-5 shadow-xl shadow-black/30">
@@ -26,9 +36,19 @@ export function ChallengeCard({ challenge }: { challenge: Challenge }) {
           <span className="rounded border border-zinc-600 bg-zinc-950 px-2 py-1 text-xs font-bold text-zinc-300">
             {challenge.status}
           </span>
+          {clearedScore !== undefined ? (
+            <span className="rounded border border-emerald-300/40 bg-emerald-300/10 px-2 py-1 text-xs font-bold text-emerald-100">
+              ✓ クリア済み
+            </span>
+          ) : null}
         </div>
 
         <h2 className="mt-4 text-xl font-black text-white">{challenge.title}</h2>
+        {clearedScore !== undefined ? (
+          <p className="mt-1 text-xs font-semibold text-emerald-300">
+            ベストスコア {clearedScore} pt
+          </p>
+        ) : null}
         <p className="mt-3 text-sm leading-6 text-zinc-400">
           {challenge.description}
         </p>
@@ -43,6 +63,10 @@ export function ChallengeCard({ challenge }: { challenge: Challenge }) {
             <p className="mt-1 leading-6 text-zinc-400">
               {challenge.learnSummary ?? challenge.description}
             </p>
+          </div>
+          <div>
+            <p className="font-bold text-emerald-100">獲得可能スコア</p>
+            <p className="mt-1 text-zinc-400">{scoreCapsText} pt</p>
           </div>
         </div>
       </div>

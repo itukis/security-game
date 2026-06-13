@@ -8,7 +8,7 @@ const { summarizePatch } = require('./patchPolicy');
 const { optionalAuth } = require('./auth/authMiddleware');
 const { recordSubmission } = require('./auth/scoring');
 const { runCompose } = require('./dockerCli');
-const { applyPatch, PROBLEMS, resetProblemContainer } = require('./applyPatch');
+const { applyPatch, ContainerCrashError, PROBLEMS, resetProblemContainer } = require('./applyPatch');
 const { enqueueContainerMutation } = require('./containerMutationQueue');
 const { validatePatchRequest } = require('./patchValidation');
 const { PROBLEM_META } = require('./problemMeta');
@@ -143,6 +143,11 @@ app.post('/problems/:id/verify', optionalAuth, async (req, res) => {
     const msg = err.message || 'Internal error';
     if (msg.includes('patch does not apply') || msg.includes('--check')) {
       res.status(400).json({ error: 'Patch failed validation: patch does not apply cleanly' });
+    } else if (err.name === 'ContainerCrashError') {
+      console.error('Verify error: container crashed after patch:', err.message);
+      res.status(400).json({
+        error: `Patch applied but the app failed to start — check for syntax errors or runtime crashes in your patch.\n\nContainer output:\n${err.containerLogs}`,
+      });
     } else {
       console.error('Verify error:', msg);
       res.status(500).json({ error: 'Verification failed due to an internal error' });
@@ -185,6 +190,11 @@ app.patch('/problems/:id/preview', optionalAuth, async (req, res) => {
     const msg = err.message || 'Internal error';
     if (msg.includes('patch does not apply') || msg.includes('--check')) {
       res.status(400).json({ error: 'Patch failed validation: patch does not apply cleanly' });
+    } else if (err.name === 'ContainerCrashError') {
+      console.error('Preview apply error: container crashed after patch:', err.message);
+      res.status(400).json({
+        error: `Patch applied but the app failed to start — check for syntax errors or runtime crashes in your patch.\n\nContainer output:\n${err.containerLogs}`,
+      });
     } else {
       console.error('Preview apply error:', msg);
       res.status(500).json({ error: 'Preview apply failed due to an internal error' });

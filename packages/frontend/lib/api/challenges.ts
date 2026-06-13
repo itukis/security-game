@@ -337,6 +337,31 @@ export async function recordCompletion(
   }
 }
 
+export async function getMyCompletions(): Promise<Record<string, number>> {
+  if (!isSupabaseConfigured) return {};
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return {};
+
+  try {
+    const { data } = await supabase
+      .from("completed_problems")
+      .select("problem_id, score")
+      .eq("user_id", session.user.id);
+
+    if (!data) return {};
+    const result: Record<string, number> = {};
+    for (const row of data) {
+      result[row.problem_id as string] = row.score as number;
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
 function wait(ms: number) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);

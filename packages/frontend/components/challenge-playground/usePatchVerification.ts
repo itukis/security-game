@@ -76,7 +76,7 @@ export function usePatchVerification({
       setDefenseState(result.passed ? "success" : "failure");
 
       const nextScore = result.passed
-        ? Math.max(SCORE_CONFIG.floor, scoreCap - manualHintsRevealed * SCORE_CONFIG.hintPenalty)
+        ? Math.max(0, Math.min(scoreCap, scoreCap - manualHintsRevealed * SCORE_CONFIG.hintPenalty))
         : Math.min(scoreCap, 35);
       setScore(nextScore);
 

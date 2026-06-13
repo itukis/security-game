@@ -79,17 +79,93 @@ const PROBLEMS = {
   },
 };
 
-async function waitForHealth(port, timeoutMs = 15000) {
+// Raise via SANDBOX_HEALTH_TIMEOUT_MS if your Docker host is slow (e.g. macOS + Docker Desktop).
+const HEALTH_TIMEOUT_MS = Number(process.env.SANDBOX_HEALTH_TIMEOUT_MS) || 45000;
+
+// Thrown when a container exits unexpectedly during startup (e.g. the patched
+// code has a syntax error or crashes immediately). Callers can distinguish this
+// from a generic timeout and surface a meaningful error to the user.
+class ContainerCrashError extends Error {
+  constructor(container, logs) {
+    super(
+      `Container ${container} exited during startup — the patch may have introduced a syntax error or runtime crash.`
+    );
+    this.name = 'ContainerCrashError';
+    this.containerLogs = logs;
+  }
+}
+
+async function getContainerStatus(container) {
+  try {
+    const { stdout } = await runDocker([
+      'inspect', '--format', '{{.State.Status}}', container,
+    ]);
+    return stdout.trim();
+  } catch {
+    return 'unknown';
+  }
+}
+
+async function getContainerLogs(container, lines = 40) {
+  try {
+    const { stdout, stderr } = await runDocker(['logs', '--tail', String(lines), container]);
+    return (stdout + stderr).trim() || '(no output)';
+  } catch (e) {
+    return `(could not retrieve logs: ${e.message})`;
+  }
+}
+
+// Poll the /health endpoint until it responds 200 or the timeout is reached.
+// Signature changed from (port, ms) to (container, port, ms) so we can inspect
+// the container state on failure.
+async function waitForHealth(container, port, timeoutMs = HEALTH_TIMEOUT_MS) {
   const start = Date.now();
+  let lastProbeErr = null;
+  let probeCount = 0;
+
   while (Date.now() - start < timeoutMs) {
+    probeCount++;
+    const elapsed = Date.now() - start;
+
     try {
       await axios.get(`http://localhost:${port}/health`, { timeout: 1000 });
+      console.error(
+        `[health:${container}] healthy after ${elapsed}ms (${probeCount} probe${probeCount === 1 ? '' : 's'})`
+      );
       return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 500));
+    } catch (e) {
+      lastProbeErr = e.code || e.message;
     }
+
+    // After a failed probe check whether the container is still running. If it
+    // has exited, no amount of waiting will help — fail fast with the log tail.
+    const status = await getContainerStatus(container);
+    if (status === 'exited' || status === 'dead') {
+      const logs = await getContainerLogs(container);
+      console.error(
+        `[health:${container}] container ${status} after ${elapsed}ms ` +
+        `(${probeCount} probe${probeCount === 1 ? '' : 's'}).\nContainer logs:\n${logs}`
+      );
+      throw new ContainerCrashError(container, logs);
+    }
+
+    await new Promise((r) => setTimeout(r, 500));
   }
-  throw new Error(`Container did not become healthy within ${timeoutMs}ms`);
+
+  // Timed out — gather full diagnostics before throwing.
+  const elapsed = Date.now() - start;
+  const status = await getContainerStatus(container);
+  const logs = await getContainerLogs(container);
+  console.error(
+    `[health:${container}] TIMEOUT after ${elapsed}ms, ${probeCount} probe${probeCount === 1 ? '' : 's'}.\n` +
+    `  Container status : ${status}\n` +
+    `  Last probe error : ${lastProbeErr}\n` +
+    `  Container logs   :\n${logs}`
+  );
+  throw new Error(
+    `Container did not become healthy within ${timeoutMs}ms ` +
+    `(status: ${status}, last probe error: ${lastProbeErr})`
+  );
 }
 
 async function resetProblemContainer(problemId) {
@@ -106,13 +182,17 @@ async function resetProblemContainer(problemId) {
     // Container may not exist; ignore.
   }
   await runCompose(['up', '--build', '-d', problem.composeService]);
-  await waitForHealth(problem.port, 30000);
+  await waitForHealth(problem.container, problem.port);
 }
 
 async function applyPatch({ problemId, patchString }) {
   const problem = PROBLEMS[problemId];
   if (!problem) throw new Error(`Unknown problem: ${problemId}`);
   validatePatchSafety({ problemId, patchString });
+
+  const t0 = Date.now();
+  const tag = `[applyPatch:${problemId}]`;
+  console.error(`${tag} start`);
 
   // Write patch to a temp file on the host
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arena-patch-'));
@@ -125,39 +205,31 @@ async function applyPatch({ problemId, patchString }) {
 
     // Copy patch into the container
     await runDocker(['cp', patchPath, `${problem.container}:/app/patches/user.patch`]);
+    console.error(`${tag} cp done (${Date.now() - t0}ms)`);
 
     // Validate the patch inside the container. Force single-file apply for defense-in-depth.
     await runDocker([
-      'exec',
-      problem.container,
-      'git',
-      '-C',
-      '/app',
-      'apply',
-      '--check',
-      `--include=${problem.patchTarget}`,
-      '--exclude=*',
+      'exec', problem.container, 'git', '-C', '/app', 'apply',
+      '--check', `--include=${problem.patchTarget}`, '--exclude=*',
       '/app/patches/user.patch',
     ]);
+    console.error(`${tag} git apply --check done (${Date.now() - t0}ms)`);
 
     // Apply the patch
     await runDocker([
-      'exec',
-      problem.container,
-      'git',
-      '-C',
-      '/app',
-      'apply',
-      `--include=${problem.patchTarget}`,
-      '--exclude=*',
+      'exec', problem.container, 'git', '-C', '/app', 'apply',
+      `--include=${problem.patchTarget}`, '--exclude=*',
       '/app/patches/user.patch',
     ]);
+    console.error(`${tag} git apply done (${Date.now() - t0}ms)`);
 
     // Restart the container so the app picks up patched files
     await runCompose(['restart', problem.composeService]);
+    console.error(`${tag} restart done (${Date.now() - t0}ms)`);
 
     // Wait for healthcheck
-    await waitForHealth(problem.port);
+    await waitForHealth(problem.container, problem.port);
+    console.error(`${tag} healthy (${Date.now() - t0}ms total)`);
 
     return { applied: true };
   } finally {
@@ -166,4 +238,4 @@ async function applyPatch({ problemId, patchString }) {
   }
 }
 
-module.exports = { applyPatch, PROBLEMS, resetProblemContainer };
+module.exports = { applyPatch, ContainerCrashError, PROBLEMS, resetProblemContainer };

@@ -1,4 +1,4 @@
-import { ChallengeCard } from "@/components/ChallengeCard";
+import { ChallengeGrid } from "@/components/ChallengeGrid";
 import { Header } from "@/components/Header";
 import { getProblems } from "@/lib/api/challenges";
 
@@ -31,11 +31,7 @@ export default async function ChallengesPage() {
             </div>
           </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {challenges.map((challenge) => (
-              <ChallengeCard key={challenge.id} challenge={challenge} />
-            ))}
-          </div>
+          <ChallengeGrid challenges={challenges} />
         </section>
       </div>
     </main>

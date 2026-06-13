@@ -165,7 +165,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-slate-400">Score</p>
-                        <p className="text-lg font-semibold">{item.score}</p>
+                        <p className="text-lg font-semibold">{Math.max(0, item.score)}</p>
                       </div>
                     </div>
                     <p className="mt-2 text-xs text-slate-500">
