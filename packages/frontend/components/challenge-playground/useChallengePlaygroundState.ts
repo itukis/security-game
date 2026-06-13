@@ -16,7 +16,7 @@ import type {
 } from "@/components/challenge-playground/types";
 import { usePreviewApply } from "@/components/challenge-playground/usePreviewApply";
 import { usePatchVerification } from "@/components/challenge-playground/usePatchVerification";
-import { resetContainer } from "@/lib/api/challenges";
+import { isDockerBackedProblem, resetContainer } from "@/lib/api/challenges";
 import type { Challenge, PreviewServerStatus, VerifyResult } from "@/lib/challengeTypes";
 import {
   DIFFICULTY,
@@ -60,8 +60,10 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
   const [step1Confirmed, setStep1Confirmed] = useState(false);
 
   const selectedPatch = challenge.patchOptions.find((patch) => patch.id === selectedPatchId);
+  const isDockerBacked = isDockerBackedProblem(challenge.id);
   const hasAttacked = attackState === "success";
   const isEditorMode = difficulty.patchInput === "editor";
+  const canUseLivePreview = isDockerBacked && isEditorMode && difficulty.showSite;
   const hasEditedCode = isEditorMode ? editorCode !== challenge.initialCode : false;
   const hasSelectedPatch = isEditorMode ? hasEditedCode : selectedPatchId !== null;
   const canSelectPatch = hasAttacked && codeReviewed;
@@ -227,7 +229,7 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
     nextStatus: PreviewServerStatus,
     delayMs = 0,
   ) {
-    if (!difficulty.showSite) return;
+    if (!canUseLivePreview) return;
     setPreviewReloading(true);
     try {
       if (delayMs > 0) await wait(delayMs);
@@ -261,6 +263,7 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
 
   const handleSubmitPatch = usePatchVerification({
     challengeId: challenge.id,
+    canUseLivePreview,
     difficulty,
     scoreCap,
     manualHintsRevealed: manualHintsUsed,
@@ -277,8 +280,10 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
     toast,
   });
 
-  const showLivePreview = isEditorMode && difficulty.showSite;
-  const liveViewMode = challenge.liveViewMode ?? "iframe";
+  const showLivePreview = canUseLivePreview;
+  const liveViewMode = canUseLivePreview
+    ? (challenge.liveViewMode ?? "iframe")
+    : undefined;
   const selectedPatchTitle = isEditorMode
     ? hasEditedCode
       ? "編集済みコード"
@@ -310,8 +315,10 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
       hintsRevealed,
       manualHintsRevealed: manualHintsUsed,
       selectedPatch,
+      isDockerBacked,
       hasAttacked,
       isEditorMode,
+      canUseLivePreview,
       hasEditedCode,
       hasSelectedPatch,
       canSelectPatch,

@@ -17,8 +17,48 @@ const { createUserRouter } = require('./routes/userRoutes');
 const ORCHESTRATOR_VERSION = '0.5.0';
 const PROBLEMS_DIR = path.resolve(__dirname, '../../vulnerable-apps');
 
+// Optional whitelist of problem IDs that are actually backed by live Docker
+// containers in this deployment. When set (typical low-memory VM that only
+// runs the 3 composite review problems), /health and /admin/reset operate on
+// just this subset so we don't try to probe / restart containers that were
+// never started. verify / reset / preview reject out-of-scope problem IDs so
+// accidental requests cannot start containers outside this deployment scope.
+// Format: comma-separated, e.g. "review-support-portal,review-account-workflow"
+const LIVE_DOCKER_PROBLEM_IDS = (() => {
+  const raw = process.env.LIVE_DOCKER_PROBLEM_IDS;
+  if (!raw) return null;
+  const ids = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  return ids.length > 0 ? new Set(ids) : null;
+})();
+
+function activeProblemIds() {
+  const all = Object.keys(PROBLEM_META);
+  if (!LIVE_DOCKER_PROBLEM_IDS) return all;
+  return all.filter((id) => LIVE_DOCKER_PROBLEM_IDS.has(id));
+}
+
+const STATIC_ONLY_DEPLOYMENT_ERROR = 'This problem is static-only on this deployment';
+
+function isLiveDockerProblem(problemId) {
+  return !LIVE_DOCKER_PROBLEM_IDS || LIVE_DOCKER_PROBLEM_IDS.has(problemId);
+}
+
+function rejectStaticOnlyDeployment(problemId, res) {
+  if (!PROBLEM_META[problemId]) {
+    res.status(404).json({ error: `Problem not found: ${problemId}` });
+    return true;
+  }
+  if (!isLiveDockerProblem(problemId)) {
+    res.status(400).json({ error: STATIC_ONLY_DEPLOYMENT_ERROR });
+    return true;
+  }
+  return false;
+}
+
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
+
 const app = express();
-app.use(cors({ origin: 'http://localhost:3000' }));
+app.use(cors({ origin: FRONTEND_ORIGIN }));
 app.use(express.json({ limit: '1mb' }));
 
 const previewUseByUserProblem = new Set();
@@ -52,7 +92,7 @@ function resolveScoreMode({ user, problemId, requestedMode }) {
 }
 
 app.get('/health', async (req, res) => {
-  const problemIds = Object.keys(PROBLEM_META);
+  const problemIds = activeProblemIds();
   const checks = await Promise.allSettled(
     problemIds.map((id) => {
       const problem = PROBLEMS[id];
@@ -70,6 +110,7 @@ app.get('/health', async (req, res) => {
     version: ORCHESTRATOR_VERSION,
     problems: problemIds,
     containersHealthy,
+    liveDockerScope: LIVE_DOCKER_PROBLEM_IDS ? Array.from(LIVE_DOCKER_PROBLEM_IDS) : null,
   });
 });
 
@@ -92,6 +133,8 @@ app.get('/problems/:id', optionalAuth, (req, res) => {
 app.post('/problems/:id/verify', optionalAuth, async (req, res) => {
   const { id } = req.params;
   const { patch, mode } = req.body;
+  if (rejectStaticOnlyDeployment(id, res)) return;
+
   const validationError = validatePatchRequest(id, patch);
   if (validationError) {
     return res.status(validationError.status).json({ error: validationError.error });
@@ -157,9 +200,7 @@ app.post('/problems/:id/verify', optionalAuth, async (req, res) => {
 
 app.post('/problems/:id/reset', optionalAuth, async (req, res) => {
   const { id } = req.params;
-  if (!PROBLEM_META[id]) {
-    return res.status(404).json({ error: `Problem not found: ${id}` });
-  }
+  if (rejectStaticOnlyDeployment(id, res)) return;
 
   try {
     await enqueueContainerMutation(() => resetProblemContainer(id));
@@ -174,6 +215,8 @@ app.post('/problems/:id/reset', optionalAuth, async (req, res) => {
 app.patch('/problems/:id/preview', optionalAuth, async (req, res) => {
   const { id } = req.params;
   const { patch } = req.body;
+  if (rejectStaticOnlyDeployment(id, res)) return;
+
   const validationError = validatePatchRequest(id, patch);
   if (validationError) {
     return res.status(validationError.status).json({ error: validationError.error });
@@ -209,8 +252,21 @@ app.post('/admin/reset', async (req, res) => {
 
   const start = Date.now();
   try {
-    await runCompose(['down']);
-    await runCompose(['up', '-d', '--build']);
+    if (LIVE_DOCKER_PROBLEM_IDS) {
+      // Only tear down + rebuild the services this deployment actually runs.
+      // `compose down` without service names would also drop the network and
+      // any out-of-scope containers, so target by service instead.
+      const services = activeProblemIds()
+        .map((id) => PROBLEMS[id]?.composeService)
+        .filter(Boolean);
+      if (services.length > 0) {
+        await runCompose(['rm', '-fs', ...services]);
+        await runCompose(['up', '-d', '--build', ...services]);
+      }
+    } else {
+      await runCompose(['down']);
+      await runCompose(['up', '-d', '--build']);
+    }
     previewUseByUserProblem.clear();
     res.json({ reset: true, durationMs: Date.now() - start });
   } catch (err) {
