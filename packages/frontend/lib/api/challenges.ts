@@ -303,22 +303,17 @@ export async function recordCompletion(
   if (!session) return;
 
   try {
-    const { error: upsertError } = await supabase
-      .from("completed_problems")
-      .upsert(
-        {
-          user_id: session.user.id,
-          problem_id: id,
-          score,
-          completed_at: new Date().toISOString(),
-        },
-        {
-          onConflict: "user_id,problem_id",
-          ignoreDuplicates: false,
-        },
-      );
+    // Atomic GREATEST upsert: score only moves upward; patch is kept from the
+    // highest-scoring run. Uses a SECURITY DEFINER RPC so no extra RLS policies
+    // are needed on completed_problems for INSERT/UPDATE.
+    const { error: upsertError } = await supabase.rpc("upsert_completion", {
+      p_user_id: session.user.id,
+      p_problem_id: id,
+      p_score: score,
+      p_patch: patch,
+    });
     if (upsertError) {
-      console.warn("[recordCompletion] completed_problems upsert:", upsertError.message);
+      console.warn("[recordCompletion] upsert_completion:", upsertError.message);
     }
 
     const { error: insertError } = await supabase

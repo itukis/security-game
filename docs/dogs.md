@@ -156,13 +156,13 @@ security-game/
 ### `packages/frontend/.env.local`
 ```env
 NEXT_PUBLIC_USE_MOCK=true
-NEXT_PUBLIC_SUPABASE_URL=https://ypynhbuwujnavrjbqmyd.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
 ```
 
 ### `packages/orchestrator/.env`
 ```env
-SUPABASE_URL=https://ypynhbuwujnavrjbqmyd.supabase.co
+SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_JWKS_URL=https://.../.well-known/jwks.json
 SUPABASE_ANON_KEY=<anon key>
 SUPABASE_SERVICE_ROLE_KEY=<service role key>

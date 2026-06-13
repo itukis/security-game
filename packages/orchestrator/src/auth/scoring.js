@@ -89,25 +89,27 @@ async function recordSubmission({ userId, problemId, patch, passed, scoreMode, d
     scoreToRecord = problem.base_score;
   }
 
-  const { data: completed, error: completedError } = await supabase
-    .from('completed_problems')
-    .insert({
-      user_id: userId,
-      problem_id: problemId,
-      score: scoreToRecord,
-    })
-    .select('score')
-    .single();
+  // Atomic GREATEST upsert: score only moves upward; patch is kept from the
+  // highest-scoring run. Replaces the plain INSERT that left scores unchanged
+  // on re-clears (23505 duplicate key → silent failure).
+  const { data: upsertData, error: completedError } = await supabase.rpc('upsert_completion', {
+    p_user_id: userId,
+    p_problem_id: problemId,
+    p_score: scoreToRecord,
+    p_patch: patch,
+  });
 
   if (completedError) {
-    if (completedError.code === '23505') {
-      return { recorded: true, firstClear: false, score: 0 };
-    }
-    console.error('Failed to insert completed problem:', completedError.message);
+    console.error('Failed to upsert completed problem:', completedError.message);
     return { recorded: true, firstClear: false, score: null };
   }
 
-  return { recorded: true, firstClear: true, score: completed.score };
+  const row = Array.isArray(upsertData) ? upsertData[0] : upsertData;
+  return {
+    recorded: true,
+    firstClear: Boolean(row && row.first_clear),
+    score: row ? row.best_score : null,
+  };
 }
 
 module.exports = { recordSubmission };

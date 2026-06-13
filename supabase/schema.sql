@@ -28,6 +28,7 @@ user_id uuid not null references auth.users(id) on delete cascade,
 problem_id text not null references public.problems(id) on delete cascade,
 completed_at timestamptz not null default now(),
 score int not null,
+patch text,
 unique (user_id, problem_id)
 );
 
