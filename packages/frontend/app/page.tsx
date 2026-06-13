@@ -33,7 +33,7 @@ export default function HomePage() {
                 href="/glossary"
                 className="inline-flex h-12 items-center justify-center gap-2 rounded border border-cyan-300/60 bg-transparent px-5 text-sm font-bold text-cyan-100 transition hover:border-cyan-200 hover:bg-cyan-300/10 focus:outline-none focus:ring-2 focus:ring-cyan-100 focus:ring-offset-2 focus:ring-offset-zinc-950"
               >
-                📖 Words
+                Words and Quiz
               </Link>
               <div className="inline-flex h-12 items-center justify-center rounded border border-zinc-700 bg-zinc-900/80 px-5 text-sm font-semibold text-zinc-300">
                   SQLi / XSS / IDOR / Path Traversal / Command Injection / CSRF / Information Exposure / Open Redirect / Insecure File Upload の9問

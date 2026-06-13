@@ -16,7 +16,7 @@ export function Header() {
     router.push("/login");
   }
 
-  // Words sits on the left next to the logo (reference material is always
+  // Words and Quiz sits on the left next to the logo (reference material is always
   // accessible). The right-hand nav holds the task-flow links, with the
   // sign-in / sign-up CTAs (or Logout when authenticated) pinned to the far
   // right end.
@@ -42,7 +42,7 @@ export function Header() {
 
         <nav className="flex items-center gap-2 text-sm font-bold">
           <Link href="/glossary" className={linkClass}>
-            Words
+            Words and Quiz
           </Link>
           {user ? (
             <>
