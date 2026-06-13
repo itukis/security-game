@@ -38,8 +38,10 @@ export type PlaygroundModel = {
   hintsRevealed: number;
   manualHintsRevealed: number;
   selectedPatch?: PatchOption;
+  isDockerBacked: boolean;
   hasAttacked: boolean;
   isEditorMode: boolean;
+  canUseLivePreview: boolean;
   hasEditedCode: boolean;
   hasSelectedPatch: boolean;
   canSelectPatch: boolean;

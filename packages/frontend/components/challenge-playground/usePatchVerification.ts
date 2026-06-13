@@ -16,6 +16,7 @@ type ToastApi = {
 
 type UsePatchVerificationArgs = {
   challengeId: string;
+  canUseLivePreview: boolean;
   difficulty: DifficultySettings;
   scoreCap: number;
   manualHintsRevealed: number;
@@ -37,6 +38,7 @@ type UsePatchVerificationArgs = {
 
 export function usePatchVerification({
   challengeId,
+  canUseLivePreview,
   difficulty,
   scoreCap,
   manualHintsRevealed,
@@ -84,7 +86,7 @@ export function usePatchVerification({
         setCompletedAt(Date.now());
         toast.success("問題をクリアしました！");
         void recordCompletion(challengeId, nextScore, patchString);
-        if (difficulty.showSite) {
+        if (canUseLivePreview) {
           void refreshPreviewAfterPatch("verified", 800);
           window.setTimeout(() => setPreviewStatus("reset"), 15000);
         }

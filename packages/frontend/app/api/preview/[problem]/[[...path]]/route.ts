@@ -20,17 +20,38 @@ const PORT_BY_PROBLEM: Record<string, number> = {
   "review-file-workbench": 3012,
 };
 
+const DOCKER_PROBLEM_IDS: ReadonlySet<string> | null = (() => {
+  const raw = process.env.NEXT_PUBLIC_DOCKER_PROBLEM_IDS;
+  if (!raw) return null;
+  const ids = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return ids.length > 0 ? new Set(ids) : null;
+})();
+
 const FORWARDED_REQUEST_HEADERS = new Set([
   "content-type",
   "x-user-id",
   "x-csrf-token",
 ]);
 
+function isPreviewEnabled(problem: string) {
+  return !DOCKER_PROBLEM_IDS || DOCKER_PROBLEM_IDS.has(problem);
+}
+
 async function proxy(
   request: NextRequest,
   problem: string,
   pathParts: string[],
 ) {
+  if (!isPreviewEnabled(problem)) {
+    return Response.json(
+      { error: "This problem is static-only on this deployment" },
+      { status: 400 },
+    );
+  }
+
   const port = PORT_BY_PROBLEM[problem];
   if (!port) {
     return Response.json(

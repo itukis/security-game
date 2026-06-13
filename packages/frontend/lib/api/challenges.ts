@@ -9,17 +9,45 @@ import { problemOrder, type ProblemId } from "@/lib/problemContent";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { DifficultyMode } from "@/lib/difficultyConfig";
 
-const STATIC_ONLY_PROBLEM_IDS = new Set<ProblemId>([
+// Default static-only set when NEXT_PUBLIC_DOCKER_PROBLEM_IDS is unset.
+// These two problems have no vulnerable-apps container and are not in the
+// orchestrator's PROBLEMS map — they MUST be verified statically.
+const DEFAULT_STATIC_ONLY_PROBLEM_IDS = new Set<ProblemId>([
   "path-traversal-files",
   "cmd-injection-ping",
 ]);
 
+// Optional whitelist of problem IDs that are backed by real Docker containers.
+// When set (e.g. low-memory VM that only runs the 3 composite review problems),
+// every other problem ID falls back to verifyMockPatch / staticPatchPasses so
+// the orchestrator can run with a reduced container fleet.
+// Format: comma-separated, e.g. "review-support-portal,review-account-workflow"
+const DOCKER_PROBLEM_IDS: ReadonlySet<string> | null = (() => {
+  const raw = process.env.NEXT_PUBLIC_DOCKER_PROBLEM_IDS;
+  if (!raw) return null;
+  const ids = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return ids.length > 0 ? new Set(ids) : null;
+})();
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ??
+  "http://localhost:4000";
+const SERVER_ORCHESTRATOR_URL =
+  process.env.ORCHESTRATOR_URL?.replace(/\/$/, "") ??
   "http://localhost:4000";
 // Default to the real orchestrator. Set NEXT_PUBLIC_USE_MOCK=true to opt
 // back into the mockChallenges-only path (used for offline demos and tests).
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
+
+function apiUrl(path: string): string {
+  if (typeof window === "undefined" && API_BASE_URL.startsWith("/")) {
+    return `${SERVER_ORCHESTRATOR_URL}${path}`;
+  }
+  return `${API_BASE_URL}${path}`;
+}
 
 async function authHeader(): Promise<Record<string, string>> {
   if (typeof window === "undefined" || !isSupabaseConfigured) return {};
@@ -41,13 +69,13 @@ export async function getProblems(): Promise<Challenge[]> {
 
 export async function getProblem(id: string): Promise<Challenge | undefined> {
   const fallback = getStaticChallenge(id);
-  if (USE_MOCK || isStaticOnlyProblem(id)) {
+  if (isStaticOnlyProblem(id)) {
     return fallback;
   }
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}/problems/${id}`, {
+    response = await fetch(apiUrl(`/problems/${id}`), {
       cache: "no-store",
     });
   } catch {
@@ -71,11 +99,11 @@ export async function verifyPatch(
   patch: string,
   mode: DifficultyMode = "editPreview",
 ): Promise<VerifyResult> {
-  if (USE_MOCK || isStaticOnlyProblem(id)) {
+  if (isStaticOnlyProblem(id)) {
     return verifyMockPatch(id, patch);
   }
 
-  const response = await fetch(`${API_BASE_URL}/problems/${id}/verify`, {
+  const response = await fetch(apiUrl(`/problems/${id}/verify`), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -106,10 +134,10 @@ export async function verifyPatch(
 
 export async function resetContainer(id: string): Promise<void> {
   // Static-only problems have no container to reset.
-  if (USE_MOCK || isStaticOnlyProblem(id)) return;
+  if (isStaticOnlyProblem(id)) return;
 
   try {
-    const response = await fetch(`${API_BASE_URL}/problems/${id}/reset`, {
+    const response = await fetch(apiUrl(`/problems/${id}/reset`), {
       method: "POST",
       headers: { ...(await authHeader()) },
     });
@@ -126,12 +154,11 @@ export async function previewApplyPatch(
   id: string,
   patch: string,
 ): Promise<{ applied: true }> {
-  if (USE_MOCK || isStaticOnlyProblem(id)) {
-    await wait(800);
+  if (isStaticOnlyProblem(id)) {
     return { applied: true };
   }
 
-  const response = await fetch(`${API_BASE_URL}/problems/${id}/preview`, {
+  const response = await fetch(apiUrl(`/problems/${id}/preview`), {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -252,7 +279,21 @@ function getStaticChallenge(id: string): Challenge | undefined {
 }
 
 function isStaticOnlyProblem(id: string): boolean {
-  return STATIC_ONLY_PROBLEM_IDS.has(id as ProblemId);
+  if (USE_MOCK) return true;
+  if (DEFAULT_STATIC_ONLY_PROBLEM_IDS.has(id as ProblemId)) return true;
+  // Explicit Docker whitelist wins: only IDs in the env-configured set go
+  // through the orchestrator; everything else is forced through verifyMockPatch.
+  if (DOCKER_PROBLEM_IDS) {
+    return !DOCKER_PROBLEM_IDS.has(id);
+  }
+  return false;
+}
+
+// UI-facing predicate: true when this problem reaches the orchestrator at
+// runtime (i.e. has a live container backing it). Used to gate live-preview
+// affordances that only make sense for Docker-backed problems.
+export function isDockerBackedProblem(id: string): boolean {
+  return !isStaticOnlyProblem(id);
 }
 
 function mapProblemToChallenge(
@@ -294,8 +335,9 @@ export async function recordCompletion(
   score: number,
   patch: string,
 ): Promise<void> {
+  // Record submissions for both Docker-backed and static-only problems —
+  // the user still cleared the challenge regardless of how it was verified.
   if (!isSupabaseConfigured) return;
-  if (isStaticOnlyProblem(id)) return;
 
   const {
     data: { session },
@@ -355,10 +397,4 @@ export async function getMyCompletions(): Promise<Record<string, number>> {
   } catch {
     return {};
   }
-}
-
-function wait(ms: number) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
 }

@@ -100,10 +100,17 @@ function AttackStep({
   return (
     <div className="grid min-w-0 gap-4">
       <div className="grid min-w-0 gap-4 lg:grid-cols-[0.92fr_1.08fr]">
-        <VulnerableAppPreview
-          challenge={challenge}
-          onExploitDetected={actions.handleRunAttack}
-        />
+        {model.isDockerBacked ? (
+          <VulnerableAppPreview
+            challenge={challenge}
+            onExploitDetected={actions.handleRunAttack}
+          />
+        ) : (
+          <StaticPreviewCard
+            model={model}
+            onRunAttack={actions.handleRunAttack}
+          />
+        )}
         <AttackPanel
           attackPayload={challenge.attackPayload}
           attackState={model.attackState}
@@ -121,6 +128,57 @@ function AttackStep({
       {model.attackState === "success" ? (
         <ProceedToStep2 onProceed={actions.handleProceedToStep2} />
       ) : null}
+    </div>
+  );
+}
+
+function StaticPreviewCard({
+  model,
+  onRunAttack,
+}: {
+  model: PlaygroundModel;
+  onRunAttack: () => void;
+}) {
+  const { challenge } = model;
+
+  return (
+    <div className="relative min-w-0 rounded-lg border border-cyan-300/20 bg-zinc-950 p-4">
+      <div className="mb-4 flex min-w-0 items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+            Lightweight Preview
+          </p>
+          <h3 className="mt-1 break-words text-lg font-bold text-white">
+            {challenge.vulnerableAppTitle}
+          </h3>
+          <p className="mt-1 break-all font-mono text-xs text-zinc-500">
+            {challenge.targetEndpoint}
+          </p>
+        </div>
+        <span className="rounded border border-amber-300/40 bg-amber-300/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-amber-100">
+          static
+        </span>
+      </div>
+
+      <div className="rounded border border-zinc-700 bg-black p-4">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">
+          Payload
+        </p>
+        <p className="mt-2 break-all rounded bg-rose-400/10 px-2 py-1 font-mono text-sm text-rose-100">
+          {challenge.attackPayload}
+        </p>
+        <p className="mt-4 text-sm leading-6 text-zinc-300">
+          この問題は低メモリ公開版では軽量プレビューです。検証は静的パッチ判定で行います。
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={onRunAttack}
+        className="mt-4 inline-flex h-11 w-full items-center justify-center rounded border border-cyan-300/60 bg-cyan-300 px-4 text-sm font-black text-zinc-950 shadow-lg shadow-cyan-950/40 transition hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-100 focus:ring-offset-2 focus:ring-offset-zinc-950"
+      >
+        攻撃テストを実行
+      </button>
     </div>
   );
 }
@@ -217,7 +275,7 @@ function EditorPatchArea({
           onChange={actions.handleEditorChange}
           onReset={() => actions.handleEditorChange(challenge.initialCode)}
         />
-        {model.mode === "editPreview" ? (
+        {model.mode === "editPreview" && model.showLivePreview ? (
           <PreviewApplyControl
             disabledReason={
               !model.hasEditedCode
