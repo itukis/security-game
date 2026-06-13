@@ -8,7 +8,6 @@ import { ResultPanel } from "@/components/ResultPanel";
 import { VulnerableAppPreview } from "@/components/VulnerableAppPreview";
 import { ActiveStepHeader } from "@/components/challenge-playground/ChallengeChrome";
 import {
-  HintPanel,
   PreviewApplyControl,
   ProceedToStep2,
   VerifyTrigger,
@@ -158,11 +157,6 @@ function CodeReviewStep({
           原因コードを確認した
         </button>
       </div>
-      <HintPanel
-        hints={challenge.hints}
-        hintsRevealed={model.hintsRevealed}
-        onRevealHint={actions.handleRevealHint}
-      />
     </div>
   );
 }
