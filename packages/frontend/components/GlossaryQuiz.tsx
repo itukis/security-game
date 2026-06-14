@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { GLOSSARY_TERMS, type GlossaryTerm } from "@/lib/glossaryData";
 
 const QUESTION_COUNT = 10;
@@ -41,6 +41,23 @@ function shuffle<T>(items: T[]): T[] {
   return next;
 }
 
+function hashString(value: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function stableShuffle<T>(items: T[], seed: string): T[] {
+  return [...items].sort((a, b) => {
+    const left = hashString(`${seed}:${String(a)}`);
+    const right = hashString(`${seed}:${String(b)}`);
+    return left - right;
+  });
+}
+
 // Pick `count` items from `items` uniformly at random without replacement, in
 // O(count) time using a partial Fisher-Yates. Avoids shuffling the whole list
 // when we only need the first 10.
@@ -64,10 +81,14 @@ function getCorrectSummary(question: QuizQuestion) {
 function tryBuildQuestion(
   term: GlossaryTerm,
   candidates: GlossaryTerm[],
+  randomize: boolean,
 ): QuizQuestion | null {
   const correctText = cleanSummary(term);
   const usedSummaries = new Set([correctText]);
-  const wrongOptions = shuffle(candidates)
+  const orderedCandidates = randomize
+    ? shuffle(candidates)
+    : stableShuffle(candidates, term.term);
+  const wrongOptions = orderedCandidates
     .filter((candidate) => candidate.no !== term.no)
     .map(cleanSummary)
     .filter((summary) => {
@@ -82,27 +103,33 @@ function tryBuildQuestion(
   return {
     id: `${term.no}-${term.term}`,
     term,
-    options: shuffle([correctText, ...wrongOptions]),
+    options: randomize
+      ? shuffle([correctText, ...wrongOptions])
+      : stableShuffle([correctText, ...wrongOptions], `${term.term}:options`),
   };
 }
 
-function buildQuiz(): QuizQuestion[] {
+function buildQuiz(randomize = true): QuizQuestion[] {
   if (QUIZ_CANDIDATES.length === 0) return [];
   // Walk a shuffled candidate list, accumulating successful questions until we
   // hit QUESTION_COUNT. Skipping a candidate that cannot produce enough unique
   // distractors prevents silent quiz shrinkage observed in the previous shape.
-  const ordering = pickRandom(QUIZ_CANDIDATES, QUIZ_CANDIDATES.length);
+  const ordering = randomize
+    ? pickRandom(QUIZ_CANDIDATES, QUIZ_CANDIDATES.length)
+    : QUIZ_CANDIDATES;
   const questions: QuizQuestion[] = [];
   for (const term of ordering) {
     if (questions.length >= QUESTION_COUNT) break;
-    const question = tryBuildQuestion(term, QUIZ_CANDIDATES);
+    const question = tryBuildQuestion(term, QUIZ_CANDIDATES, randomize);
     if (question) questions.push(question);
   }
   return questions;
 }
 
 export function GlossaryQuiz() {
-  const [questions, setQuestions] = useState<QuizQuestion[] | null>(null);
+  const [questions, setQuestions] = useState<QuizQuestion[]>(() =>
+    buildQuiz(false),
+  );
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<AnswerRecord[]>([]);
   const [currentAnswer, setCurrentAnswer] = useState<AnswerRecord | null>(null);
@@ -116,17 +143,9 @@ export function GlossaryQuiz() {
     setHintVisible(false);
   }, []);
 
-  // First-time setup: build the quiz immediately after mount. We intentionally
-  // defer the Math.random-backed shuffle to client-only to avoid a SSR/hydration
-  // mismatch where the server's first render would emit a different option
-  // order than the client's hydration pass. No setTimeout wrapping — the
-  // deferred timer caused a guaranteed loader flash on every restart.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => startNewQuiz(), [startNewQuiz]);
-
   const currentQuestion = questions?.[currentIndex] ?? null;
   const isFinished =
-    questions !== null && questions.length > 0 && currentIndex >= questions.length;
+    questions.length > 0 && currentIndex >= questions.length;
 
   const score = useMemo(
     () => answers.filter((answer) => answer.isCorrect).length,
@@ -165,10 +184,10 @@ export function GlossaryQuiz() {
     setCurrentIndex((index) => index + 1);
   }
 
-  if (questions === null || questions.length === 0) {
+  if (questions.length === 0) {
     return (
       <div className="rounded-lg border border-zinc-800 bg-zinc-900/95 p-6 text-sm text-zinc-300">
-        クイズを準備しています...
+        クイズデータを読み込めませんでした。
       </div>
     );
   }

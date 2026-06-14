@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { ChallengeCard } from "@/components/ChallengeCard";
 import { getMyCompletions } from "@/lib/api/challenges";
-import type { Challenge } from "@/lib/challengeTypes";
+import type { ChallengeCardData } from "@/lib/challengeTypes";
 
-export function ChallengeGrid({ challenges }: { challenges: Challenge[] }) {
+export function ChallengeGrid({ challenges }: { challenges: ChallengeCardData[] }) {
   const [completions, setCompletions] = useState<Record<string, number> | null>(null);
 
   useEffect(() => {

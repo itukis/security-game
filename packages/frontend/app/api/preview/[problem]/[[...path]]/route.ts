@@ -36,6 +36,9 @@ const FORWARDED_REQUEST_HEADERS = new Set([
   "x-csrf-token",
 ]);
 
+const PREVIEW_UPSTREAM_TIMEOUT_MS =
+  Number(process.env.PREVIEW_UPSTREAM_TIMEOUT_MS) || 3500;
+
 function isPreviewEnabled(problem: string) {
   return !DOCKER_PROBLEM_IDS || DOCKER_PROBLEM_IDS.has(problem);
 }
@@ -76,9 +79,15 @@ async function proxy(
     }
   }
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, PREVIEW_UPSTREAM_TIMEOUT_MS);
+
   const init: RequestInit = {
     method: request.method,
     headers: upstreamHeaders,
+    signal: controller.signal,
     // Don't auto-follow 3xx — the open-redirect preview needs to inspect the
     // Location header that the vulnerable app returns. Following would also
     // try to fetch attacker-supplied external URLs from this Node process.
@@ -114,13 +123,20 @@ async function proxy(
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    const aborted =
+      err instanceof Error &&
+      (err.name === "AbortError" || message.includes("aborted"));
     return Response.json(
       {
-        error: "Container unreachable",
-        message,
+        error: aborted ? "Container preview timed out" : "Container unreachable",
+        message: aborted
+          ? `Preview did not respond within ${PREVIEW_UPSTREAM_TIMEOUT_MS}ms`
+          : message,
       },
-      { status: 502 },
+      { status: aborted ? 504 : 502 },
     );
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

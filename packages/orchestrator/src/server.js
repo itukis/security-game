@@ -56,6 +56,8 @@ function rejectStaticOnlyDeployment(problemId, res) {
 }
 
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
+const HEALTH_PROBE_TIMEOUT_MS =
+  Number(process.env.ORCHESTRATOR_HEALTH_TIMEOUT_MS) || 3000;
 
 const app = express();
 app.use(cors({ origin: FRONTEND_ORIGIN }));
@@ -97,7 +99,9 @@ app.get('/health', async (req, res) => {
     problemIds.map((id) => {
       const problem = PROBLEMS[id];
       if (!problem) return Promise.reject(new Error('no port'));
-      return axios.get(`http://localhost:${problem.port}/health`, { timeout: 1000 });
+      return axios.get(`http://localhost:${problem.port}/health`, {
+        timeout: HEALTH_PROBE_TIMEOUT_MS,
+      });
     })
   );
 

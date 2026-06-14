@@ -1,9 +1,9 @@
 import { ChallengeGrid } from "@/components/ChallengeGrid";
 import { Header } from "@/components/Header";
-import { getProblems } from "@/lib/api/challenges";
+import { getProblemCards } from "@/lib/api/challenges";
 
 export default async function ChallengesPage() {
-  const challenges = await getProblems();
+  const challenges = await getProblemCards();
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
