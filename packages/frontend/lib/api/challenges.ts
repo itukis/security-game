@@ -1,5 +1,6 @@
 import type {
   Challenge,
+  ChallengeCardData,
   ProblemResponse,
   VerifyResult,
 } from "@/lib/challengeTypes";
@@ -41,6 +42,12 @@ const SERVER_ORCHESTRATOR_URL =
 // Default to the real orchestrator. Set NEXT_PUBLIC_USE_MOCK=true to opt
 // back into the mockChallenges-only path (used for offline demos and tests).
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
+// On the tiny Oracle AMD VM, avoid contacting the orchestrator while rendering
+// pages. The orchestrator is still used for verify/preview on Docker-backed
+// problems; page content comes from the checked-in problem definitions.
+const USE_STATIC_PROBLEM_CONTENT =
+  process.env.NEXT_PUBLIC_USE_STATIC_PROBLEM_CONTENT === "true" ||
+  Boolean(DOCKER_PROBLEM_IDS);
 
 function apiUrl(path: string): string {
   if (typeof window === "undefined" && API_BASE_URL.startsWith("/")) {
@@ -67,9 +74,16 @@ export async function getProblems(): Promise<Challenge[]> {
     .filter((c): c is Challenge => Boolean(c));
 }
 
+export async function getProblemCards(): Promise<ChallengeCardData[]> {
+  return problemOrder
+    .map((id) => getStaticChallenge(id))
+    .filter((c): c is Challenge => Boolean(c))
+    .map(toChallengeCardData);
+}
+
 export async function getProblem(id: string): Promise<Challenge | undefined> {
   const fallback = getStaticChallenge(id);
-  if (isStaticOnlyProblem(id)) {
+  if (USE_STATIC_PROBLEM_CONTENT || isStaticOnlyProblem(id)) {
     return fallback;
   }
 
@@ -276,6 +290,18 @@ function extractHtmlScriptArea(code: string) {
 
 function getStaticChallenge(id: string): Challenge | undefined {
   return mockChallenges.find((challenge) => challenge.id === id);
+}
+
+function toChallengeCardData(challenge: Challenge): ChallengeCardData {
+  return {
+    id: challenge.id,
+    title: challenge.title,
+    vulnerability: challenge.vulnerability,
+    difficulty: challenge.difficulty,
+    status: challenge.status,
+    description: challenge.description,
+    learnSummary: challenge.learnSummary,
+  };
 }
 
 function isStaticOnlyProblem(id: string): boolean {

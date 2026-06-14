@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
 import { ChallengePlayground } from "@/components/ChallengePlayground";
 import { Header } from "@/components/Header";
-import { getProblem, getProblems } from "@/lib/api/challenges";
+import { getProblem, getProblemCards } from "@/lib/api/challenges";
 
 export async function generateStaticParams() {
-  const challenges = await getProblems();
+  const challenges = await getProblemCards();
 
   return challenges.map((challenge) => ({
     id: challenge.id,

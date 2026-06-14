@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Challenge, Difficulty } from "@/lib/challengeTypes";
+import type { ChallengeCardData, Difficulty } from "@/lib/challengeTypes";
 import { getAvailableModes, getScoreCap } from "@/lib/difficultyConfig";
 
 const TIME_ESTIMATE: Record<Difficulty, string> = {
@@ -14,7 +14,7 @@ export function ChallengeCard({
   challenge,
   clearedScore,
 }: {
-  challenge: Challenge;
+  challenge: ChallengeCardData;
   clearedScore?: number;
 }) {
   const isAvailable = challenge.status === "available";

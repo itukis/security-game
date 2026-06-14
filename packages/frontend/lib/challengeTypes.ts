@@ -135,6 +135,17 @@ export type Challenge = ProblemPresentation & {
   // so per-problem content can populate it explicitly.
 };
 
+export type ChallengeCardData = Pick<
+  Challenge,
+  | "id"
+  | "title"
+  | "vulnerability"
+  | "difficulty"
+  | "status"
+  | "description"
+  | "learnSummary"
+>;
+
 export type AttackResult = {
   challengeId: string;
   success: boolean;
