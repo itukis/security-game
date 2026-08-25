@@ -28,6 +28,20 @@ const PROBLEMS = {
     patchTarget: 'src/server.js',
     port: 3003,
   },
+  'path-traversal-files': {
+    container: 'arena-path-traversal-files',
+    composeService: 'path-traversal-files',
+    attackName: 'path-traversal',
+    patchTarget: 'src/server.js',
+    port: 3004,
+  },
+  'cmd-injection-ping': {
+    container: 'arena-cmd-injection-ping',
+    composeService: 'cmd-injection-ping',
+    attackName: 'command-injection',
+    patchTarget: 'src/server.js',
+    port: 3005,
+  },
   'csrf-transfer': {
     container: 'arena-csrf-transfer',
     composeService: 'csrf-transfer',

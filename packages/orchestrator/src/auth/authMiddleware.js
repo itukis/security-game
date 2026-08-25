@@ -63,7 +63,7 @@ async function verifyJwt(token) {
     return jwt.verify(token, secret, { ...verifyOptions, algorithms: ['HS256'] });
   }
 
-  if (alg === 'ES256') {
+  if (alg === 'ES256' || alg === 'RS256') {
     const jwks = await getJwks();
     const jwk = jwks.keys.find((key) => key.kid === kid);
     if (!jwk) {
@@ -71,7 +71,7 @@ async function verifyJwt(token) {
     }
 
     const publicKey = crypto.createPublicKey({ key: jwk, format: 'jwk' });
-    return jwt.verify(token, publicKey, { ...verifyOptions, algorithms: ['ES256'] });
+    return jwt.verify(token, publicKey, { ...verifyOptions, algorithms: [alg] });
   }
 
   throw new Error(`Unsupported JWT alg: ${alg || '(none)'}`);

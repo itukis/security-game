@@ -65,6 +65,7 @@ export interface AppliedPatchSummary {
 
 /** Scoring side-effect of an authenticated submission. */
 export interface SubmissionRecording {
+  recorded: boolean;
   firstClear: boolean;
   score: number | null;
 }

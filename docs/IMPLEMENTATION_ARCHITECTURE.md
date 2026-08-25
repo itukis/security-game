@@ -284,7 +284,6 @@ ChallengePlayground.handlePreviewApply()
 | `lib/supabase.ts` | ブラウザ用 Supabase client。env がない mock mode でも module 評価で落ちないよう null cast する。 |
 | `lib/makePatch.ts` | `diff` パッケージで unified diff を生成する。`git apply` に合うよう `a/` と `b/` prefix を付ける。 |
 | `lib/difficultyConfig.ts` | 難易度モードごとの patch input、preview 表示、hint 表示、score cap 設定。 |
-| `lib/scoreConfig.ts` | スコア計算設定。現状 `ChallengePlayground` 側の簡易スコア制御とは別に存在する。 |
 | `lib/errors.ts` | `ApiError` class と、エラー種別分類の `classifyError()`。 |
 | `lib/glossary.ts` | 用語集データ。 |
 
@@ -315,7 +314,7 @@ Express API の入口です。
 | `PATCH /problems/:id/preview` | container を baseline に戻し、patch を適用して preview 用に反映する。 |
 | `POST /admin/reset` | `ALLOW_RESET=true` のときだけ全 vulnerable app を rebuild/reset する。 |
 | `GET /me/dashboard` | 認証済みユーザーの profile、completed、submission_history を Supabase から返す。 |
-| `GET /leaderboard` | Supabase RPC `get_leaderboard` を呼び、表示名の fallback も補完する。 |
+| `GET /leaderboard` | backend-only Supabase RPC `get_leaderboard` を呼び、メールを含まない順位情報を返す。 |
 
 ### `src/applyPatch.js`
 
@@ -365,9 +364,9 @@ patch の安全性検証と summary 生成を担当します。
 | ファイル | 役割 |
 |---|---|
 | `src/dockerCli.js` | `execFile` で `docker`/`docker compose`/`docker-compose` を呼ぶ wrapper。Compose v2 が使えない場合に legacy `docker-compose` へ fallback する。 |
-| `src/auth/authMiddleware.js` | `optionalAuth` middleware。Bearer JWT がなければ `req.user=null`、あれば Supabase JWT を検証する。HS256 と ES256+JWKS に対応。 |
-| `src/auth/supabaseClient.js` | service role key で Supabase server client を作る。 |
-| `src/auth/scoring.js` | `recordSubmission()`。提出履歴を入れ、初回 clear なら `completed_problems` に score を入れる。 |
+| `src/auth/authMiddleware.js` | `optionalAuth` middleware。Bearer JWT がなければ `req.user=null`、あれば Supabase JWT を検証する。HS256、ES256、RS256に対応。 |
+| `src/auth/supabaseClient.js` | backend-only Secret key でSupabase server clientを作る。 |
+| `src/auth/scoring.js` | `recordSubmission()`。サーバーでモード別点数を決定し、backend-only RPCで履歴とBest scoreを1トランザクション保存する。 |
 
 ## Attack engine 実装
 
@@ -445,23 +444,23 @@ type AttackResult = {
 
 | テーブル | 役割 |
 |---|---|
-| `profiles` | Supabase Auth user に対応する profile。`auth.users` insert trigger で作成される。 |
+| `profiles` | Supabase Auth userに対応する表示名だけのprofile。メールは重複保存しない。Auth insert/update triggerで同期される。 |
 | `problems` | 問題 catalog。`base_score` を持つ。 |
-| `submission_history` | すべての提出履歴。patch、passed、duration を保存する。 |
-| `completed_problems` | 初回 clear 済み問題。`unique(user_id, problem_id)` で二重加点を防ぐ。 |
+| `submission_history` | すべての認証済み提出履歴。patch、passed、score mode、付与点、durationを保存する。 |
+| `completed_problems` | 問題ごとのBest scoreとそのpatch。`unique(user_id, problem_id)`で1行に保つ。 |
 
 ### View/RPC/Trigger
 
 | 名前 | 役割 |
 |---|---|
-| `leaderboard` view | `profiles` と `completed_problems` から total score と completed count を集計する。 |
+| `get_leaderboard` RPC | `profiles`と`completed_problems`から、メールを含めずtotal scoreとcompleted countを集計する。 |
 | `get_leaderboard(limit_n)` | leaderboard view を rank 付きで返す RPC。anon/authenticated に execute grant される。 |
 | `handle_new_user()` | `auth.users` 作成時に `profiles` row を作る trigger function。 |
 
 ### RLS
 
 `supabase/rls.sql` では各 table の RLS を有効化しています。
-ユーザー自身の profile/submission/completed の select を許可し、`problems` は authenticated に読み取り許可します。
+ブラウザロールからゲームテーブルへの権限はrevokeし、Auth以外はorchestrator API経由に限定します。採点・ランキングRPCも`service_role`だけが実行できます。
 orchestrator は service role client を使うため、提出記録や dashboard 取得をサーバー側から実行できます。
 
 ## 環境変数
@@ -471,9 +470,9 @@ orchestrator は service role client を使うため、提出記録や dashboard
 | `NEXT_PUBLIC_API_URL` | frontend | orchestrator の base URL。未指定なら `http://localhost:4000`。 |
 | `NEXT_PUBLIC_USE_MOCK` | frontend | challenge API は `true` のとき mock。dashboard/leaderboard API は `false` のとき実 API。デフォルトの扱いがファイル間で違うので注意。 |
 | `NEXT_PUBLIC_SUPABASE_URL` | frontend | Supabase browser client の URL。 |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | frontend | Supabase browser client の anon key。 |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | frontend | Supabase browser client のPublishable key。 |
 | `SUPABASE_URL` | orchestrator | Supabase server client/JWT issuer/JWKS URL の基準。 |
-| `SUPABASE_SERVICE_ROLE_KEY` | orchestrator | DB 書き込み/読み取り用 service role key。 |
+| `SUPABASE_SECRET_KEY` | orchestrator | DB 書き込み/読み取り用のbackend-only Secret key。 |
 | `SUPABASE_JWT_SECRET` | orchestrator | HS256 JWT 検証用。 |
 | `SUPABASE_JWKS_URL` | orchestrator | ES256 JWT の JWKS URL override。 |
 | `ALLOW_RESET` | orchestrator | `true` のときだけ `/admin/reset` を有効化する。 |

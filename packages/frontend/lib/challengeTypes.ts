@@ -34,6 +34,12 @@ export type AttackOutcome = {
 
 export type VerifyValue = string | boolean | number | AttackOutcome | null;
 
+export type SubmissionRecording = {
+  recorded: boolean;
+  firstClear: boolean;
+  score: number | null;
+};
+
 export type ProblemResponse = {
   id: string;
   title: string;
@@ -48,6 +54,10 @@ export type VerifyResult = {
   attackBefore: VerifyValue;
   attackAfter: VerifyValue;
   passed: boolean;
+  // Present only for an authenticated verification. Supabase persistence is
+  // performed by the orchestrator after the live attack succeeds; the browser
+  // never writes an authoritative score directly.
+  recording?: SubmissionRecording;
 };
 
 export type PreviewServerStatus =

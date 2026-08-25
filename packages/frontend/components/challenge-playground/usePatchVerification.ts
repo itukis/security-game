@@ -4,10 +4,9 @@ import type { Dispatch, SetStateAction } from "react";
 import { VERIFY_LOADING_STEPS } from "@/components/challenge-playground/constants";
 import { wait } from "@/components/challenge-playground/previewHelpers";
 import type { DefenseState } from "@/components/challenge-playground/types";
-import { recordCompletion, verifyPatch } from "@/lib/api/challenges";
+import { verifyPatch } from "@/lib/api/challenges";
 import type { PreviewServerStatus, VerifyResult } from "@/lib/challengeTypes";
 import type { DifficultySettings } from "@/lib/difficultyConfig";
-import { SCORE_CONFIG } from "@/lib/scoreConfig";
 
 type ToastApi = {
   success: (message: string) => void;
@@ -19,7 +18,6 @@ type UsePatchVerificationArgs = {
   canUseLivePreview: boolean;
   difficulty: DifficultySettings;
   scoreCap: number;
-  manualHintsRevealed: number;
   makeCurrentPatch: () => string | undefined;
   refreshPreviewAfterPatch: (
     nextStatus: PreviewServerStatus,
@@ -41,7 +39,6 @@ export function usePatchVerification({
   canUseLivePreview,
   difficulty,
   scoreCap,
-  manualHintsRevealed,
   makeCurrentPatch,
   refreshPreviewAfterPatch,
   handleAutoRevealHint,
@@ -77,15 +74,27 @@ export function usePatchVerification({
       setVerifyResult(result);
       setDefenseState(result.passed ? "success" : "failure");
 
+      const recordedScore = result.recording?.score;
       const nextScore = result.passed
-        ? Math.max(SCORE_CONFIG.floor, scoreCap - manualHintsRevealed * SCORE_CONFIG.hintPenalty)
+        ? typeof recordedScore === "number"
+          ? recordedScore
+          : scoreCap
         : Math.min(scoreCap, 35);
       setScore(nextScore);
 
       if (result.passed) {
         setCompletedAt(Date.now());
-        toast.success("問題をクリアしました！");
-        void recordCompletion(challengeId, nextScore, patchString);
+        if (result.recording?.recorded) {
+          toast.success(
+            result.recording.score === null
+              ? "問題をクリアしました！提出履歴を保存しました。"
+              : `問題をクリアしました！Best ${result.recording.score}点`,
+          );
+        } else if (result.recording) {
+          toast.error("クリアしましたが、スコア保存サービスに接続できませんでした。");
+        } else {
+          toast.success("問題をクリアしました！ログインするとスコアを保存できます。");
+        }
         if (canUseLivePreview) {
           void refreshPreviewAfterPatch("verified", 800);
           window.setTimeout(() => setPreviewStatus("reset"), 15000);

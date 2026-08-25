@@ -55,8 +55,6 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
   const [previewApplyState, setPreviewApplyState] = useState<PreviewApplyState>("idle");
   const [previewApplyError, setPreviewApplyError] = useState<string | null>(null);
   const [hintsRevealed, setHintsRevealed] = useState(0);
-  const [manualHintsRevealed, setManualHintsRevealed] = useState(0);
-  const [openedHintIndices, setOpenedHintIndices] = useState<Set<number>>(() => new Set());
   const [step1Confirmed, setStep1Confirmed] = useState(false);
 
   const selectedPatch = challenge.patchOptions.find((patch) => patch.id === selectedPatchId);
@@ -77,11 +75,6 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
     return challenge.hints.slice(0, hintsRevealed);
   }, [challenge.hints, difficulty.hints, hintsRevealed]);
 
-  // For multipleChoice ("all"), penalty counts first accordion opens (Set size).
-  // For editPreview ("onDemand"), penalty counts explicit reveal button clicks.
-  // For editOnly ("none"), no hints exist so this is always 0.
-  const manualHintsUsed =
-    difficulty.hints === "all" ? openedHintIndices.size : manualHintsRevealed;
   const retestDisabledReason = !hasAttacked
     ? "攻撃テストを実行すると、検証に進めます。"
     : !codeReviewed
@@ -116,8 +109,6 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
     setEditorCode(challenge.initialCode);
     setHintsRevealed(0);
     resetPreviewApplyState();
-    setManualHintsRevealed(0);
-    setOpenedHintIndices(new Set());
   }
 
   function handleRunAttack() {
@@ -203,26 +194,10 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
 
   function handleRevealHint() {
     setHintsRevealed((n) => Math.min(challenge.hints.length, n + 1));
-    // Only count as manual (penalized) for onDemand mode; multipleChoice tracks
-    // reveals via handleHintOpen (accordion first-open), editOnly has no hints.
-    if (difficulty.hints === "onDemand") {
-      setManualHintsRevealed((n) => Math.min(challenge.hints.length, n + 1));
-    }
   }
 
   function handleAutoRevealHint() {
     setHintsRevealed((n) => Math.min(challenge.hints.length, n + 1));
-    // Auto-reveal after failed verify: shows next hint but carries no penalty.
-  }
-
-  function handleHintOpen(index: number) {
-    // Tracks first-time accordion opens in multipleChoice mode for penalty.
-    setOpenedHintIndices((prev) => {
-      if (prev.has(index)) return prev;
-      const next = new Set(prev);
-      next.add(index);
-      return next;
-    });
   }
 
   async function refreshPreviewAfterPatch(
@@ -266,7 +241,6 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
     canUseLivePreview,
     difficulty,
     scoreCap,
-    manualHintsRevealed: manualHintsUsed,
     makeCurrentPatch,
     refreshPreviewAfterPatch,
     handleAutoRevealHint,
@@ -313,7 +287,6 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
       previewApplyState,
       previewApplyError,
       hintsRevealed,
-      manualHintsRevealed: manualHintsUsed,
       selectedPatch,
       isDockerBacked,
       hasAttacked,
@@ -344,7 +317,6 @@ export function useChallengePlaygroundState(challenge: Challenge): PlaygroundSta
       handleResetMission,
       handleRevealHint,
       handleAutoRevealHint,
-      handleHintOpen,
       handlePreviewApply,
       handleSubmitPatch,
     },

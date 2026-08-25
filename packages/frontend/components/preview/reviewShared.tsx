@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CONTAINER_DOWN_MESSAGE,
   ResultBanner,
@@ -37,7 +37,9 @@ export function useReviewProbes(args: {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ProbeResult | null>(null);
   const onExploitedRef = useRef(args.onExploitDetected);
-  onExploitedRef.current = args.onExploitDetected;
+  useEffect(() => {
+    onExploitedRef.current = args.onExploitDetected;
+  }, [args.onExploitDetected]);
 
   async function runProbe(label: string, probe: () => Promise<boolean>) {
     setLoading(true);

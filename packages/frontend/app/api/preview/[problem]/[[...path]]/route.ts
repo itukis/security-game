@@ -11,6 +11,8 @@ const PORT_BY_PROBLEM: Record<string, number> = {
   "sqli-login": 3001,
   "xss-comments": 3002,
   "idor-profile": 3003,
+  "path-traversal-files": 3004,
+  "cmd-injection-ping": 3005,
   "csrf-transfer": 3006,
   "hardcoded-secrets": 3007,
   "open-redirect": 3008,
@@ -102,6 +104,13 @@ async function proxy(
     const upstream = await fetch(upstreamUrl, init);
     const body = await upstream.arrayBuffer();
     const responseHeaders = new Headers();
+    // Keep intentionally vulnerable documents in an opaque origin even when
+    // somebody opens a preview URL directly instead of through our iframe.
+    responseHeaders.set(
+      "content-security-policy",
+      "sandbox allow-forms allow-scripts",
+    );
+    responseHeaders.set("cache-control", "no-store");
     const contentType = upstream.headers.get("content-type");
     if (contentType) responseHeaders.set("content-type", contentType);
     const location = upstream.headers.get("location");

@@ -10,6 +10,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
 import { getDashboard, type DashboardResponse } from "@/lib/api";
 import { classifyError, type ErrorKind } from "@/lib/errors";
+import { problemOrder } from "@/lib/problemContent";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 function formatMemberSince(iso?: string | null) {
@@ -61,10 +62,10 @@ const BADGES: BadgeConfig[] = [
     name: "全問制覇",
     description: "全種類の脆弱性問題をすべてクリアした",
     icon: "✦",
-    check: (d) =>
-      ["sqli", "xss", "idor"].every((type) =>
-        d.completed.some((c) => c.problem_id.includes(type)),
-      ),
+    check: (d) => {
+      const completedIds = new Set(d.completed.map((c) => c.problem_id));
+      return problemOrder.every((id) => completedIds.has(id));
+    },
   },
   {
     id: "one-shot",
@@ -90,7 +91,7 @@ export default function ProfilePage() {
   const [dataLoading, setDataLoading] = useState(false);
   const [errorKind, setErrorKind] = useState<ErrorKind | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const [nameInput, setNameInput] = useState("");
+  const [nameInput, setNameInput] = useState<string | null>(null);
   const [nameSaving, setNameSaving] = useState(false);
 
   useEffect(() => {
@@ -117,12 +118,6 @@ export default function ProfilePage() {
       active = false;
     };
   }, [user, retryCount]);
-
-  useEffect(() => {
-    if (user) {
-      setNameInput((user.user_metadata?.display_name as string | undefined) ?? "");
-    }
-  }, [user]);
 
   if (!isSupabaseConfigured) {
     return <SupabaseRequiredNotice />;
@@ -166,7 +161,7 @@ export default function ProfilePage() {
 
   async function handleSaveName(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const trimmed = nameInput.trim();
+    const trimmed = (nameInput ?? currentDisplayName ?? "").trim();
     if (trimmed.length < 2 || trimmed.length > 50) {
       toast.error("表示名は2〜50文字で入力してください。");
       return;
@@ -240,7 +235,7 @@ export default function ProfilePage() {
               </span>
               <input
                 type="text"
-                value={nameInput}
+                value={nameInput ?? currentDisplayName ?? ""}
                 onChange={(e) => setNameInput(e.target.value)}
                 minLength={2}
                 maxLength={50}

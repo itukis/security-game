@@ -5,8 +5,8 @@
 #   ./packages/orchestrator/scripts/get-test-jwt.sh <password> [email]
 #   export TEST_JWT=$(./packages/orchestrator/scripts/get-test-jwt.sh testtest)
 #
-# Reads SUPABASE_URL and SUPABASE_ANON_KEY from packages/orchestrator/.env.
-# The publishable sb_publishable_... key works as the apikey.
+# Reads SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY from
+# packages/orchestrator/.env.
 
 set -euo pipefail
 
@@ -27,17 +27,17 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 # Pull values without sourcing the file (which could exec arbitrary shell).
-SUPABASE_URL="$(grep -E '^SUPABASE_URL=' "$ENV_FILE" | head -n1 | cut -d= -f2-)"
-SUPABASE_ANON_KEY="$(grep -E '^SUPABASE_ANON_KEY=' "$ENV_FILE" | head -n1 | cut -d= -f2-)"
+SUPABASE_URL="$(grep -E '^SUPABASE_URL=' "$ENV_FILE" | head -n1 | cut -d= -f2- | xargs)"
+SUPABASE_PUBLISHABLE_KEY="$(grep -E '^SUPABASE_PUBLISHABLE_KEY=' "$ENV_FILE" | head -n1 | cut -d= -f2- | xargs)"
 
-if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_ANON_KEY" ]]; then
-  echo "SUPABASE_URL and SUPABASE_ANON_KEY must be set in $ENV_FILE" >&2
+if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_PUBLISHABLE_KEY" ]]; then
+  echo "SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY must be set in $ENV_FILE" >&2
   exit 1
 fi
 
 RESPONSE="$(
   curl -sS -X POST "$SUPABASE_URL/auth/v1/token?grant_type=password" \
-    -H "apikey: $SUPABASE_ANON_KEY" \
+    -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
     -H "Content-Type: application/json" \
     -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}"
 )"

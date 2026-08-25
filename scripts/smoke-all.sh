@@ -2,7 +2,7 @@
 # scripts/smoke-all.sh — full end-to-end smoke check before a demo.
 #
 # Runs every check that matters: container health, orchestrator health,
-# all three verify.js flows, (optionally) the authed HTTP path, the
+# all twelve verify.js flows, (optionally) the authed HTTP path, the
 # outbound block, and the /admin/reset gating.
 #
 # Usage:
@@ -17,9 +17,25 @@ set -uo pipefail
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-DOCKER="${DOCKER_BIN:-/opt/homebrew/bin/docker}"
-COMPOSE="${DOCKER_COMPOSE_BIN:-/opt/homebrew/bin/docker-compose}"
+DOCKER="${DOCKER_BIN:-docker}"
 ORCH_LOG=/tmp/smoke-orch.log
+
+PROBLEMS=(
+  sqli-login
+  xss-comments
+  idor-profile
+  path-traversal-files
+  cmd-injection-ping
+  csrf-transfer
+  hardcoded-secrets
+  open-redirect
+  file-upload
+  review-support-portal
+  review-account-workflow
+  review-file-workbench
+)
+
+PORTS=(3001 3002 3003 3004 3005 3006 3007 3008 3009 3010 3011 3012)
 
 FAILS=0
 ORCH_PID=""
@@ -35,6 +51,14 @@ pass() { printf "${C_G}✓${C_0} %s\n" "$*"; }
 fail() { printf "${C_R}✗${C_0} %s\n" "$*"; FAILS=$((FAILS + 1)); }
 warn() { printf "${C_Y}!${C_0} %s\n" "$*"; }
 step() { printf '\n— %s —\n' "$*"; }
+
+compose() {
+  if [[ -n "${DOCKER_COMPOSE_BIN:-}" ]]; then
+    "$DOCKER_COMPOSE_BIN" "$@"
+  else
+    "$DOCKER" compose "$@"
+  fi
+}
 
 kill_port_4000() {
   local pids
@@ -55,9 +79,9 @@ start_orchestrator() {
   local env_prefix="${1:-}"
   kill_port_4000
   if [[ -n "$env_prefix" ]]; then
-    env $env_prefix node packages/orchestrator/src/server.js > "$ORCH_LOG" 2>&1 &
+    env ORCHESTRATOR_HOST=127.0.0.1 $env_prefix node packages/orchestrator/src/server.js > "$ORCH_LOG" 2>&1 &
   else
-    node packages/orchestrator/src/server.js > "$ORCH_LOG" 2>&1 &
+    env ORCHESTRATOR_HOST=127.0.0.1 node packages/orchestrator/src/server.js > "$ORCH_LOG" 2>&1 &
   fi
   ORCH_PID=$!
 
@@ -79,9 +103,10 @@ trap cleanup EXIT INT TERM
 
 # --- Step 1: docker-compose ps --------------------------------------------
 
-step "1. docker-compose ps (all three containers Up)"
-PS_OUT=$("$COMPOSE" ps 2>/dev/null || true)
-for svc in arena-sqli-login arena-xss-comments arena-idor-profile; do
+step "1. docker compose ps (all 12 containers Up)"
+PS_OUT=$(compose ps 2>/dev/null || true)
+for problem in "${PROBLEMS[@]}"; do
+  svc="arena-$problem"
   if echo "$PS_OUT" | grep -E "^${svc}\b" | grep -qE 'Up|running'; then
     pass "$svc is up"
   else
@@ -92,7 +117,8 @@ done
 # --- Step 2: vulnerable-app + orchestrator health -------------------------
 
 step "2. healthchecks"
-for url in http://localhost:3001/health http://localhost:3002/health http://localhost:3003/health; do
+for port in "${PORTS[@]}"; do
+  url="http://localhost:$port/health"
   if curl -fs "$url" > /dev/null 2>&1; then
     pass "GET $url"
   else
@@ -109,8 +135,8 @@ fi
 
 # --- Step 3: verify.js per problem (baseline, no auth) --------------------
 
-step "3. verify.js for each problem"
-for prob in sqli-login xss-comments idor-profile; do
+step "3. verify.js for all 12 problems"
+for prob in "${PROBLEMS[@]}"; do
   if OUT=$(node packages/orchestrator/src/verify.js \
       --problem "$prob" \
       --patch "packages/vulnerable-apps/$prob/solution.patch" 2>&1); then
@@ -141,11 +167,12 @@ try:
     r = json.loads(sys.stdin.read() or "{}")
 except Exception:
     sys.exit(1)
-sys.exit(0 if r.get("passed") and "recording" in r and "appliedPatchSummary" in r else 1)
+recording = r.get("recording") or {}
+sys.exit(0 if r.get("passed") and recording.get("recorded") is True and "appliedPatchSummary" in r else 1)
 '; then
-    pass "authed sqli-login verify includes recording + appliedPatchSummary"
+    pass "authed sqli-login verify persisted one recording + appliedPatchSummary"
   else
-    fail "authed verify response missing passed/recording/appliedPatchSummary"
+    fail "authed verify response missing passed/recording.recorded/appliedPatchSummary"
     echo "$RESP" | head -40 | sed 's/^/    /'
   fi
 else
@@ -189,7 +216,8 @@ kill_port_4000
 # /admin/reset just `docker-compose down && up -d --build`'d the vulnerable
 # apps — give them a moment to come back so the next run sees a clean state.
 echo "  waiting for vulnerable apps to come back after reset..."
-for url in http://localhost:3001/health http://localhost:3002/health http://localhost:3003/health; do
+for port in "${PORTS[@]}"; do
+  url="http://localhost:$port/health"
   for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
     if curl -fs "$url" > /dev/null 2>&1; then break; fi
     sleep 1

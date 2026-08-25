@@ -6,13 +6,13 @@ dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
 
 function getServerClient() {
   const url = process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
 
-  if (!url || !serviceRoleKey) {
+  if (!url || !secretKey) {
     throw new Error('Supabase server client is not configured');
   }
 
-  return createClient(url, serviceRoleKey, {
+  return createClient(url, secretKey, {
     auth: { persistSession: false },
   });
 }

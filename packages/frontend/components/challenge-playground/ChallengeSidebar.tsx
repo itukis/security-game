@@ -24,7 +24,6 @@ export function ChallengeSidebar({
     difficulty,
     hasAttacked,
     hasSelectedPatch,
-    manualHintsRevealed,
     scoreCap,
   } = model;
 
@@ -52,11 +51,7 @@ export function ChallengeSidebar({
               ? actions.handleRevealHint
               : undefined
           }
-          onHintOpen={
-            difficulty.hints === "all" ? actions.handleHintOpen : undefined
-          }
           canReveal={model.hintsRevealed < challenge.hints.length}
-          manualHintsRevealed={manualHintsRevealed}
         />
       ) : difficulty.hints === "onDemand" ? (
         <div>
@@ -68,7 +63,7 @@ export function ChallengeSidebar({
             💡 ヒントを表示する (1/{challenge.hints.length})
           </button>
           <p className="mt-1.5 text-[10px] leading-4 text-amber-200/60">
-            ヒントを1つ開くごとに -10 点
+            ヒントの利用は保存スコアに影響しません
           </p>
         </div>
       ) : null}
@@ -110,17 +105,13 @@ function HintsPanel({
   total,
   mode,
   onReveal,
-  onHintOpen,
   canReveal,
-  manualHintsRevealed,
 }: {
   hints: string[];
   total: number;
   mode: "all" | "onDemand" | "none";
   onReveal?: () => void;
-  onHintOpen?: (index: number) => void;
   canReveal: boolean;
-  manualHintsRevealed: number;
 }) {
   return (
     <aside className="relative min-w-0 rounded border border-amber-300/30 bg-zinc-950 p-3">
@@ -144,17 +135,11 @@ function HintsPanel({
             key={`${i}:${hint.slice(0, 12)}`}
             index={i}
             text={hint}
-            onOpen={onHintOpen}
           />
         ))}
       </ul>
       <div className="mt-2 text-[10px] leading-4 text-amber-200/60">
-        <p>ヒントを1つ開くごとに -10 点</p>
-        {manualHintsRevealed > 0 ? (
-          <p className="mt-0.5 text-amber-200/80">
-            現在 -{manualHintsRevealed * 10} 点分の減点
-          </p>
-        ) : null}
+        <p>保存スコアはサーバーが選択モードから決定します</p>
       </div>
     </aside>
   );
@@ -163,11 +148,9 @@ function HintsPanel({
 function HintItem({
   index,
   text,
-  onOpen,
 }: {
   index: number;
   text: string;
-  onOpen?: (index: number) => void;
 }) {
   const [open, setOpen] = useState(false);
   const bodyId = `hint-body-${index}`;
@@ -175,8 +158,6 @@ function HintItem({
   function toggle() {
     const next = !open;
     setOpen(next);
-    // Report first-time open to parent for penalty tracking; parent deduplicates.
-    if (next) onOpen?.(index);
   }
 
   return (

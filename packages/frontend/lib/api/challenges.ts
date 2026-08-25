@@ -11,12 +11,11 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { DifficultyMode } from "@/lib/difficultyConfig";
 
 // Default static-only set when NEXT_PUBLIC_DOCKER_PROBLEM_IDS is unset.
-// These two problems have no vulnerable-apps container and are not in the
-// orchestrator's PROBLEMS map — they MUST be verified statically.
-const DEFAULT_STATIC_ONLY_PROBLEM_IDS = new Set<ProblemId>([
-  "path-traversal-files",
-  "cmd-injection-ping",
-]);
+// All 12 problems now ship a vulnerable-apps container and appear in the
+// orchestrator's PROBLEMS map, so none are forced static by default — every
+// problem is verified live via the orchestrator unless a reduced-fleet
+// deployment narrows the set through the env whitelist below.
+const DEFAULT_STATIC_ONLY_PROBLEM_IDS = new Set<ProblemId>([]);
 
 // Optional whitelist of problem IDs that are backed by real Docker containers.
 // When set (e.g. low-memory VM that only runs the 3 composite review problems),
@@ -140,6 +139,7 @@ export async function verifyPatch(
       attackBefore: result.attackBefore ?? "未取得",
       attackAfter: result.attackAfter ?? "未取得",
       passed: Boolean(result.passed),
+      recording: result.recording,
     };
   } catch {
     throw new Error("Verify APIのレスポンスを解析できませんでした。");
@@ -353,74 +353,5 @@ function formatErrorDetail(responseText: string) {
     return message ? `: ${message}` : `: ${responseText}`;
   } catch {
     return `: ${responseText}`;
-  }
-}
-
-export async function recordCompletion(
-  id: string,
-  score: number,
-  patch: string,
-): Promise<void> {
-  // Record submissions for both Docker-backed and static-only problems —
-  // the user still cleared the challenge regardless of how it was verified.
-  if (!isSupabaseConfigured) return;
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) return;
-
-  try {
-    // Atomic GREATEST upsert: score only moves upward; patch is kept from the
-    // highest-scoring run. Uses a SECURITY DEFINER RPC so no extra RLS policies
-    // are needed on completed_problems for INSERT/UPDATE.
-    const { error: upsertError } = await supabase.rpc("upsert_completion", {
-      p_user_id: session.user.id,
-      p_problem_id: id,
-      p_score: score,
-      p_patch: patch,
-    });
-    if (upsertError) {
-      console.warn("[recordCompletion] upsert_completion:", upsertError.message);
-    }
-
-    const { error: insertError } = await supabase
-      .from("submission_history")
-      .insert({
-        user_id: session.user.id,
-        problem_id: id,
-        passed: true,
-        patch,
-      });
-    if (insertError) {
-      console.warn("[recordCompletion] submission_history insert:", insertError.message);
-    }
-  } catch (err) {
-    console.warn("[recordCompletion] unexpected error:", err);
-  }
-}
-
-export async function getMyCompletions(): Promise<Record<string, number>> {
-  if (!isSupabaseConfigured) return {};
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session) return {};
-
-  try {
-    const { data } = await supabase
-      .from("completed_problems")
-      .select("problem_id, score")
-      .eq("user_id", session.user.id);
-
-    if (!data) return {};
-    const result: Record<string, number> = {};
-    for (const row of data) {
-      result[row.problem_id as string] = row.score as number;
-    }
-    return result;
-  } catch {
-    return {};
   }
 }

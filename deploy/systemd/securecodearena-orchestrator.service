@@ -1,0 +1,36 @@
+[Unit]
+Description=SecureCodeArena orchestrator API
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=arena
+Group=arena
+SupplementaryGroups=docker
+WorkingDirectory=/opt/security-game
+Environment=HOME=/var/lib/securecodearena
+EnvironmentFile=/etc/securecodearena/orchestrator.env
+StateDirectory=securecodearena
+ExecStartPre=/usr/bin/docker info
+ExecStart=/usr/bin/node packages/orchestrator/src/server.js
+Restart=always
+RestartSec=3
+TimeoutStopSec=45
+MemoryMax=512M
+TasksMax=256
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=full
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

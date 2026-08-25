@@ -3,8 +3,9 @@ services:
     build:
       context: ./packages/vulnerable-apps/sqli-login
     container_name: arena-sqli-login
+    restart: unless-stopped
     ports:
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"
     networks:
       - vuln-net
     cap_add:
@@ -21,8 +22,9 @@ services:
     build:
       context: ./packages/vulnerable-apps/xss-comments
     container_name: arena-xss-comments
+    restart: unless-stopped
     ports:
-      - "3002:3000"
+      - "127.0.0.1:3002:3000"
     networks:
       - vuln-net
     cap_add:
@@ -39,8 +41,47 @@ services:
     build:
       context: ./packages/vulnerable-apps/idor-profile
     container_name: arena-idor-profile
+    restart: unless-stopped
     ports:
-      - "3003:3000"
+      - "127.0.0.1:3003:3000"
+    networks:
+      - vuln-net
+    cap_add:
+      - NET_ADMIN
+    tmpfs:
+      - /tmp:size=10M
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
+  path-traversal-files:
+    build:
+      context: ./packages/vulnerable-apps/path-traversal-files
+    container_name: arena-path-traversal-files
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3004:3000"
+    networks:
+      - vuln-net
+    cap_add:
+      - NET_ADMIN
+    tmpfs:
+      - /tmp:size=10M
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
+  cmd-injection-ping:
+    build:
+      context: ./packages/vulnerable-apps/cmd-injection-ping
+    container_name: arena-cmd-injection-ping
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3005:3000"
     networks:
       - vuln-net
     cap_add:
@@ -57,8 +98,9 @@ services:
     build:
       context: ./packages/vulnerable-apps/csrf-transfer
     container_name: arena-csrf-transfer
+    restart: unless-stopped
     ports:
-      - "3006:3000"
+      - "127.0.0.1:3006:3000"
     networks:
       - vuln-net
     cap_add:
@@ -75,8 +117,9 @@ services:
     build:
       context: ./packages/vulnerable-apps/hardcoded-secrets
     container_name: arena-hardcoded-secrets
+    restart: unless-stopped
     ports:
-      - "3007:3000"
+      - "127.0.0.1:3007:3000"
     networks:
       - vuln-net
     cap_add:
@@ -93,8 +136,9 @@ services:
     build:
       context: ./packages/vulnerable-apps/open-redirect
     container_name: arena-open-redirect
+    restart: unless-stopped
     ports:
-      - "3008:3000"
+      - "127.0.0.1:3008:3000"
     networks:
       - vuln-net
     cap_add:
@@ -111,8 +155,9 @@ services:
     build:
       context: ./packages/vulnerable-apps/file-upload
     container_name: arena-file-upload
+    restart: unless-stopped
     ports:
-      - "3009:3000"
+      - "127.0.0.1:3009:3000"
     networks:
       - vuln-net
     cap_add:
@@ -129,8 +174,9 @@ services:
     build:
       context: ./packages/vulnerable-apps/review-support-portal
     container_name: arena-review-support-portal
+    restart: unless-stopped
     ports:
-      - "3010:3000"
+      - "127.0.0.1:3010:3000"
     networks:
       - vuln-net
     cap_add:
@@ -147,8 +193,9 @@ services:
     build:
       context: ./packages/vulnerable-apps/review-account-workflow
     container_name: arena-review-account-workflow
+    restart: unless-stopped
     ports:
-      - "3011:3000"
+      - "127.0.0.1:3011:3000"
     networks:
       - vuln-net
     cap_add:
@@ -165,8 +212,9 @@ services:
     build:
       context: ./packages/vulnerable-apps/review-file-workbench
     container_name: arena-review-file-workbench
+    restart: unless-stopped
     ports:
-      - "3012:3000"
+      - "127.0.0.1:3012:3000"
     networks:
       - vuln-net
     cap_add:

@@ -175,7 +175,11 @@ app.post('/problems/:id/verify', optionalAuth, async (req, res) => {
 
       res.json({
         ...result,
-        recording: { firstClear: recording.firstClear, score: recording.score },
+        recording: {
+          recorded: recording.recorded,
+          firstClear: recording.firstClear,
+          score: recording.score,
+        },
         appliedPatchSummary: summarizePatch(patch),
       });
     } else {
@@ -282,6 +286,7 @@ app.post('/admin/reset', async (req, res) => {
 app.use(createUserRouter());
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`Orchestrator API listening on port ${PORT}`);
+const HOST = process.env.ORCHESTRATOR_HOST || '0.0.0.0';
+app.listen(PORT, HOST, () => {
+  console.log(`Orchestrator API listening on ${HOST}:${PORT}`);
 });
