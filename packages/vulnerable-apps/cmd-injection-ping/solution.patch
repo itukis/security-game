@@ -1,0 +1,21 @@
+--- a/src/server.js
++++ b/src/server.js
+@@ -1,5 +1,5 @@
+ const express = require('express');
+-const { exec } = require('child_process');
++const { execFile } = require('child_process');
+ 
+ const app = express();
+ app.use(express.json());
+@@ -9,7 +9,10 @@
+ // ; や && などのメタ文字で任意のコマンドを追加実行できてしまう。
+ app.post('/ping', (req, res) => {
+   const { host } = req.body;
+-  exec(`ping -c 1 ${host}`, (err, stdout, stderr) => {
++  if (!/^[a-zA-Z0-9.\-]+$/.test(host)) {
++    return res.status(400).json({ error: '無効なホスト名です' });
++  }
++  execFile('ping', ['-c', '1', host], (err, stdout, stderr) => {
+     res.json({ output: stdout || stderr });
+   });
+ });

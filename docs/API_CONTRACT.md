@@ -112,7 +112,7 @@ When the request carries a valid Supabase JWT, the response additionally include
 
 ```json
 {
-  "recording": { "firstClear": true, "score": 100 },
+  "recording": { "recorded": true, "firstClear": true, "score": 100 },
   "appliedPatchSummary": {
     "filesChanged": ["src/server.js"],
     "linesAdded": 2,
@@ -131,8 +131,9 @@ When the request carries a valid Supabase JWT, the response additionally include
 
 | Field | Type | Description |
 |---|---|---|
+| `recording.recorded` | `boolean` | `true` when the orchestrator persisted the submission successfully |
 | `recording.firstClear` | `boolean` | `true` only the first time this user clears this problem |
-| `recording.score` | `number \| null` | Points awarded for this submission (`null` if not recorded) |
+| `recording.score` | `number \| null` | Current best score after this submission (`null` if not recorded) |
 | `appliedPatchSummary.filesChanged` | `string[]` | Files touched by the unified diff |
 | `appliedPatchSummary.linesAdded` | `number` | Total `+` lines (excluding headers) |
 | `appliedPatchSummary.linesRemoved` | `number` | Total `-` lines (excluding headers) |

@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// Verifies that upsert_completion keeps the best score (never overwrites with a lower one).
+// Verifies that the backend-only record_verified_submission RPC keeps the best
+// score and records exactly one history row per verified request.
 //
 // Prerequisites:
-//   1. supabase/migrations/add_best_score.sql has been applied to your database
+//   1. schema.sql, migrations/add_best_score.sql, rls.sql, and seed.sql are applied
 //   2. seed.sql has been run (sqli-login must exist in the problems table)
-//   3. SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set (or .env present)
+//   3. SUPABASE_URL and SUPABASE_SECRET_KEY must be set (or .env present)
 //
 // Usage:
 //   TEST_USER_ID=<your-real-user-uuid> node scripts/verify-best-score.js
@@ -45,22 +46,32 @@ function assert(condition, label) {
 }
 
 async function cleanup(supabase) {
-  const { error } = await supabase
+  const { error: historyError } = await supabase
+    .from('submission_history')
+    .delete()
+    .eq('user_id', userId)
+    .eq('problem_id', PROBLEM_ID);
+  if (historyError) throw new Error(`History cleanup failed: ${historyError.message}`);
+
+  const { error: completionError } = await supabase
     .from('completed_problems')
     .delete()
     .eq('user_id', userId)
     .eq('problem_id', PROBLEM_ID);
-  if (error) throw new Error(`Cleanup failed: ${error.message}`);
+  if (completionError) throw new Error(`Completion cleanup failed: ${completionError.message}`);
 }
 
 async function call(supabase, score, patch) {
-  const { data, error } = await supabase.rpc('upsert_completion', {
+  const { data, error } = await supabase.rpc('record_verified_submission', {
     p_user_id: userId,
     p_problem_id: PROBLEM_ID,
-    p_score: score,
     p_patch: patch,
+    p_passed: true,
+    p_score: score,
+    p_score_mode: 'editPreview',
+    p_duration_ms: 10,
   });
-  if (error) throw new Error(`upsert_completion error: ${error.message}`);
+  if (error) throw new Error(`record_verified_submission error: ${error.message}`);
   const row = Array.isArray(data) ? data[0] : data;
   return { bestScore: row.best_score, firstClear: row.first_clear };
 }
@@ -74,6 +85,16 @@ async function read(supabase) {
     .single();
   if (error) throw new Error(`Read error: ${error.message}`);
   return data;
+}
+
+async function historyCount(supabase) {
+  const { count, error } = await supabase
+    .from('submission_history')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('problem_id', PROBLEM_ID);
+  if (error) throw new Error(`History count error: ${error.message}`);
+  return count || 0;
 }
 
 async function run() {
@@ -117,6 +138,7 @@ async function run() {
   const db4 = await read(supabase);
   assert(db4.score === 80,         `DB score    = 80     (got ${db4.score})`);
   assert(db4.patch === PATCH_C,    `DB patch    = PATCH_C (still best run's patch)`);
+  assert(await historyCount(supabase) === 4, 'history has exactly four rows');
 
   // ── Test 5: Fresh first clear at 40 ─────────────────────────────────────
   console.log('\nTest 5 — Fresh first clear at 40 (after cleanup)');

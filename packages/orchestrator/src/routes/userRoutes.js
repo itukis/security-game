@@ -20,7 +20,7 @@ function createUserRouter() {
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('display_name,email')
+      .select('display_name')
       .eq('id', req.user.id)
       .single();
 
@@ -66,7 +66,7 @@ function createUserRouter() {
     }));
 
     res.json({
-      profile: { display_name: profile.display_name, email: profile.email },
+      profile: { display_name: profile.display_name, email: req.user.email || null },
       totalScore,
       completedCount: completed.length,
       completed,
@@ -91,38 +91,11 @@ function createUserRouter() {
       return res.status(500).json({ error: 'Failed to load leaderboard' });
     }
 
-    const missingIds = (entries || [])
-      .filter((entry) => !entry.display_name && entry.user_id)
-      .map((entry) => entry.user_id);
-
-    let emailByUserId = {};
-    if (missingIds.length > 0) {
-      const { data: profiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('id,email')
-        .in('id', missingIds);
-
-      if (profileError) {
-        console.error('Failed to load profile emails for leaderboard:', profileError.message);
-      } else if (profiles) {
-        emailByUserId = profiles.reduce((acc, row) => {
-          acc[row.id] = row.email;
-          return acc;
-        }, {});
-      }
-    }
-
     const normalizedEntries = (entries || []).map((entry) => {
-      let displayName = entry.display_name;
-      const fallbackEmail = entry.email || emailByUserId[entry.user_id];
-      if (!displayName && fallbackEmail) {
-        displayName = fallbackEmail.split('@')[0];
-      }
-
       return {
         user_id: entry.user_id,
         rank: entry.rank,
-        display_name: displayName,
+        display_name: entry.display_name || 'Anonymous',
         total_score: entry.total_score,
         completed_count: entry.completed_count,
       };

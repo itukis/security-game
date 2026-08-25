@@ -1,18 +1,18 @@
-# Frontend Integration Guide
+# フロントエンド連携ガイド
 
-This document tells you everything you need to call the backend from the Next.js frontend.
+このドキュメントは、Next.js フロントエンドからバックエンドを叩くために必要なことを全部まとめたものです。
 
-## Available problems
+## 利用可能な問題
 
-| Problem ID | Vulnerability | Container port | One-line description |
+| 問題 ID | 脆弱性 | コンテナポート | 一言説明 |
 |---|---|---|---|
-| `sqli-login` | SQL injection | 3001 | Login form concatenates user input into a SQL query. |
-| `xss-comments` | Cross-site scripting | 3002 | Comment board renders user-submitted text into HTML without escaping. |
-| `idor-profile` | Authorization bypass (IDOR) | 3003 | Profile API trusts the URL ID without checking who the authenticated user is. |
+| `sqli-login` | SQL インジェクション | 3001 | ログインフォームがユーザ入力を SQL クエリへ直接結合している |
+| `xss-comments` | クロスサイトスクリプティング | 3002 | コメント掲示板がユーザ投稿テキストをエスケープせず HTML に出力している |
+| `idor-profile` | 認可バイパス (IDOR) | 3003 | プロフィール API が URL の ID をそのまま信頼し、認証ユーザの確認をしていない |
 
-The orchestrator API runs on `http://localhost:4000` and is the only host the frontend should call. Container ports above are listed for reference / direct probing only.
+orchestrator API は `http://localhost:4000` で動き、フロントエンドが叩いて良いホストはここだけ。上の表のコンテナポートは参考 / 直接プローブ用にのみ記載。
 
-## Starting the backend
+## バックエンド起動
 
 ```bash
 # From the project root (~/Desktop/security-game):
@@ -24,36 +24,36 @@ docker-compose up sqli-login xss-comments idor-profile --build -d
 node packages/orchestrator/src/server.js
 ```
 
-CORS is configured to allow requests from `http://localhost:3000` (the Next.js dev server).
+CORS は `http://localhost:3000` (Next.js dev server) からのリクエストを許可する設定。
 
-## Base URL
+## ベース URL
 
 ```
 http://localhost:4000
 ```
 
-## Endpoints needed for Day 3 MVP
+## Day 3 MVP で必要なエンドポイント
 
 ### 1. GET /problems/sqli-login
 
-Returns problem metadata + the vulnerable source code to display in the editor.
+問題メタデータ + エディタに表示する脆弱なソースコードを返す。
 
-Key fields: `initialCode` (the code to show), `hints` (array of hint strings), `description` (plain-language explanation).
+主なフィールド: `initialCode` (表示するコード)、`hints` (ヒント文字列の配列)、`description` (平易な説明)。
 
 ### 2. POST /problems/sqli-login/verify
 
-Body: `{ "patch": "<unified diff string>" }`
+ボディ: `{ "patch": "<unified diff string>" }`
 
-Returns: `{ attackBefore, attackAfter, passed }`.
+戻り値: `{ attackBefore, attackAfter, passed }`。
 
-- `passed: true` means the user fixed the vulnerability.
-- The verify call takes 5-15 seconds (container rebuild + attack runs). Show a loading state.
+- `passed: true` はユーザが脆弱性を修正したことを意味する
+- verify 呼び出しは 5〜15 秒かかる(コンテナリビルド + 攻撃実行)。ローディング状態を出すこと
 
-See `curl-examples.md` for copy-pasteable examples and `sample-responses.json` for the exact response shapes.
+コピペ可能な例は `curl-examples.md` を、正確なレスポンス形は `sample-responses.json` を参照。
 
-## Recommended client code pattern
+## 推奨クライアントコードのパターン
 
-Create a single `lib/api.ts` that wraps both calls:
+両方の呼び出しをラップする `lib/api.ts` を1つ作る:
 
 ```ts
 import type { Problem, VerifyResponse } from '@/types/arena';
@@ -83,13 +83,13 @@ export async function verifyPatch(id: string, patch: string): Promise<VerifyResp
 }
 ```
 
-Set `NEXT_PUBLIC_USE_MOCK=true` in `.env.local` to develop the UI without the backend running.
+`.env.local` に `NEXT_PUBLIC_USE_MOCK=true` を設定すると、バックエンドを動かさずに UI を開発できる。
 
-## Files in this directory
+## このディレクトリ内のファイル
 
-| File | Purpose |
+| ファイル | 用途 |
 |---|---|
-| `types.ts` | TypeScript types — copy into your project |
-| `sample-responses.json` | Real captured API responses — use as mock data |
-| `curl-examples.md` | Copy-pasteable cURL commands for manual testing |
-| `README.md` | This file |
+| `types.ts` | TypeScript 型定義 — プロジェクトにコピーして使う |
+| `sample-responses.json` | 実 API レスポンスを保存したもの — モックデータとして使える |
+| `curl-examples.md` | 手動テスト用のコピペ可能 cURL コマンド集 |
+| `README.md` | このファイル |

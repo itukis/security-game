@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ChallengeCard } from "@/components/ChallengeCard";
-import { getMyCompletions } from "@/lib/api/challenges";
+import { getMyCompletions } from "@/lib/api";
 import type { ChallengeCardData } from "@/lib/challengeTypes";
 
 export function ChallengeGrid({ challenges }: { challenges: ChallengeCardData[] }) {

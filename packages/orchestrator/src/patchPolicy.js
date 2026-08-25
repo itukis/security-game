@@ -6,7 +6,22 @@ const PROBLEM_PATCH_POLICY = {
     maxBytes: 32 * 1024,
     maxAddedLines: 80,
   },
+  'xss-comments': {
+    allowedFiles: ['src/server.js'],
+    maxBytes: 32 * 1024,
+    maxAddedLines: 80,
+  },
   'idor-profile': {
+    allowedFiles: ['src/server.js'],
+    maxBytes: 32 * 1024,
+    maxAddedLines: 80,
+  },
+  'path-traversal-files': {
+    allowedFiles: ['src/server.js'],
+    maxBytes: 32 * 1024,
+    maxAddedLines: 80,
+  },
+  'cmd-injection-ping': {
     allowedFiles: ['src/server.js'],
     maxBytes: 32 * 1024,
     maxAddedLines: 80,

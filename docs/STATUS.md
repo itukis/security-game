@@ -1,5 +1,8 @@
 # SecureCodeArena — STATUS
 
+> このファイルは2026-06-05時点の履歴スナップショットです。現在の構成は
+> `README.md`、`docs/IMPLEMENTATION_ARCHITECTURE.md`、`supabase/SETUP.md`を参照してください。
+
 Snapshot of what is implemented, what is not, and how the pieces fit
 together. Captured on 2026-06-05 after a merge that resolved an orchestrator
 `server.js` conflict and left several Day 8 frontend additions reverted.
@@ -82,7 +85,7 @@ External:
    `completed_problems` via the Supabase service-role client.
 7. Response:
    - Unauth: `{attackBefore, attackAfter, passed}`
-   - Auth:   above + `{recording: {firstClear, score}, appliedPatchSummary}`
+   - Auth:   above + `{recording: {recorded, firstClear, score}, appliedPatchSummary}`
 
 ### 1.3 Repo layout
 
@@ -204,7 +207,7 @@ security-game/
 
 | Gap | Notes |
 |---|---|
-| `packages/frontend/.env.local` not in this working copy | Without `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `npm run build` fails at static page collection (`supabaseUrl is required.`). `npm run dev` boots but `/login` / `/signup` / `/dashboard` will throw at module-load. |
+| `packages/frontend/.env.local` not in this working copy | Historical note. Current frontend uses `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Missing settings no longer crash module evaluation. |
 | `TEST_JWT` not wired into smoke-all.sh by default | Step 4 of smoke-all.sh is a WARN-not-FAIL when `TEST_JWT` is empty. Real authed verify (+ `recording` + `appliedPatchSummary`) hasn't been demo-time exercised in this branch. |
 
 ---
@@ -247,9 +250,9 @@ To exercise the authed extras + leaderboard end-to-end, additionally:
 
 ```bash
 # packages/orchestrator/.env  must contain
-#   SUPABASE_URL, SUPABASE_JWKS_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
+#   SUPABASE_URL, SUPABASE_JWKS_URL, SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY
 # packages/frontend/.env.local must contain
-#   NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
+#   NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 # Supabase project must have schema.sql + seed.sql applied and the
 # get_leaderboard(limit_n int) RPC defined.
 

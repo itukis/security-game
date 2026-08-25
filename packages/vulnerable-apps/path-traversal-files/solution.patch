@@ -1,0 +1,18 @@
+--- a/src/server.js
++++ b/src/server.js
+@@ -13,9 +13,12 @@
+ // ユーザー指定のファイル名を直接 path.join に渡しているため、
+ // ../ を含む名前で public ディレクトリの外に脱出できてしまう。
+ app.get('/download', (req, res) => {
+-  const name = req.query.name;
+-  const filePath = path.join(__dirname, 'public', name);
+-  fs.readFile(filePath, 'utf8', (err, data) => {
++  const base = path.resolve(__dirname, 'public');
++  const target = path.resolve(base, req.query.name);
++  if (!target.startsWith(base + path.sep)) {
++    return res.status(400).send('Bad Request');
++  }
++  fs.readFile(target, 'utf8', (err, data) => {
+     if (err) return res.status(404).send('File not found');
+     res.send(data);
+   });

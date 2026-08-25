@@ -8,16 +8,6 @@ import type { ProblemId } from "@/lib/problemContent";
 // Step 1 mock UI. This component is the live <iframe> preview used in the
 // editor difficulty modes (Phase 5 of the editor rollout).
 
-const PORT_BY_PROBLEM: Record<string, number> = {
-  "sqli-login": 3001,
-  "xss-comments": 3002,
-  "idor-profile": 3003,
-  "csrf-transfer": 3006,
-  "hardcoded-secrets": 3007,
-  "open-redirect": 3008,
-  "file-upload": 3009,
-};
-
 const PATH_BY_PROBLEM: Record<string, string> = {
   // Each vulnerable app exposes a different "viewable" path. sqli-login has
   // no GET root, so we point at /health to at least render something; the
@@ -25,10 +15,15 @@ const PATH_BY_PROBLEM: Record<string, string> = {
   "sqli-login": "/health",
   "xss-comments": "/comments",
   "idor-profile": "/profile/user-1",
+  "path-traversal-files": "/download?name=readme.txt",
+  "cmd-injection-ping": "/health",
   "csrf-transfer": "/balance",
   "hardcoded-secrets": "/",
   "open-redirect": "/dashboard",
   "file-upload": "/uploads",
+  "review-support-portal": "/tickets/ticket-1",
+  "review-account-workflow": "/",
+  "review-file-workbench": "/uploads",
 };
 
 interface LiveAppIframeProps {
@@ -49,10 +44,9 @@ export function LiveAppIframe({
   previewStatus = "baseline",
 }: LiveAppIframeProps) {
   const [loaded, setLoaded] = useState(false);
-  const port = PORT_BY_PROBLEM[problemId];
-  const path = PATH_BY_PROBLEM[problemId] ?? "/";
+  const path = PATH_BY_PROBLEM[problemId];
 
-  if (!port) {
+  if (!path) {
     return (
       <div className="rounded border border-zinc-700 bg-zinc-950 p-4 text-sm text-zinc-400">
         この問題のライブプレビューURLは未設定です ({problemId})
@@ -60,7 +54,9 @@ export function LiveAppIframe({
     );
   }
 
-  const url = `http://localhost:${port}${path}`;
+  // Always use the same-origin Next.js proxy. A browser-side localhost URL
+  // points at the learner's own machine after deployment, not at the VPS.
+  const url = `/api/preview/${encodeURIComponent(problemId)}${path}`;
 
   return (
     <section className="relative min-w-0 rounded-lg border border-cyan-300/20 bg-zinc-950 p-3 shadow-xl shadow-black/30 sm:p-4">
@@ -95,11 +91,14 @@ export function LiveAppIframe({
             {reloading ? reloadingMessage : "読み込み中..."}
           </div>
         )}
+        {/* Deliberately vulnerable HTML must not share the frontend's origin.
+            Scripts still run for the XSS lesson, but cannot read the parent
+            page or its Supabase session from localStorage. */}
         <iframe
           key={reloadKey}
           src={url}
           title={`live-${problemId}`}
-          sandbox="allow-forms allow-scripts allow-same-origin"
+          sandbox="allow-forms allow-scripts"
           onLoad={() => setLoaded(true)}
           style={{
             width: "100%",
@@ -162,5 +161,5 @@ const PREVIEW_STATUS_COPY: Record<
   },
 };
 
-export const liveAppPorts = PORT_BY_PROBLEM;
+export const liveAppProblemPaths = PATH_BY_PROBLEM;
 export type LiveAppProblemId = ProblemId;

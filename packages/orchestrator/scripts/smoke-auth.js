@@ -1,7 +1,7 @@
 // How to get TEST_JWT:
 // 1. Supabase dashboard -> Authentication -> Users -> "Add user" with email + password
 // 2. curl -X POST "$SUPABASE_URL/auth/v1/token?grant_type=password" \
-//      -H "apikey: $SUPABASE_ANON_KEY" -H "Content-Type: application/json" \
+//      -H "apikey: $SUPABASE_PUBLISHABLE_KEY" -H "Content-Type: application/json" \
 //      -d '{"email":"test@example.com","password":"..."}'
 // 3. Copy access_token from response, export as TEST_JWT
 
@@ -40,6 +40,9 @@ async function run() {
   }
   if (!data.recording) {
     throw new Error('Expected recording to be present for authenticated request');
+  }
+  if (data.recording.recorded !== true) {
+    throw new Error('Expected recording.recorded=true');
   }
 
   console.log('OK: authenticated verify recorded a submission.');

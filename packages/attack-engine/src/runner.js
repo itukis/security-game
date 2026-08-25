@@ -1,6 +1,8 @@
 const { runSqliAttack } = require('./attacks/sqli');
 const { runXssAttack } = require('./attacks/xss');
 const { runAuthBypassAttack } = require('./attacks/authBypass');
+const { runPathTraversalAttack } = require('./attacks/pathTraversal');
+const { runCommandInjectionAttack } = require('./attacks/commandInjection');
 const { runCsrfAttack } = require('./attacks/csrf');
 const { runHardcodedSecretsAttack } = require('./attacks/hardcodedSecrets');
 const { runOpenRedirectAttack } = require('./attacks/openRedirect');
@@ -13,6 +15,8 @@ const ATTACKS = {
   sqli: runSqliAttack,
   xss: runXssAttack,
   'auth-bypass': runAuthBypassAttack,
+  'path-traversal': runPathTraversalAttack,
+  'command-injection': runCommandInjectionAttack,
   csrf: runCsrfAttack,
   'hardcoded-secrets': runHardcodedSecretsAttack,
   'open-redirect': runOpenRedirectAttack,

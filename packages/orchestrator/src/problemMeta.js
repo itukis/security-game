@@ -44,6 +44,36 @@ const PROBLEM_META = {
       'Add a check at the top of the handler: if these two values are different, respond with 403 Forbidden before looking up the profile.',
     ],
   },
+  'path-traversal-files': {
+    id: 'path-traversal-files',
+    title: 'Path Traversal in File Downloader',
+    vulnerability: 'path-traversal',
+    description:
+      'The download endpoint joins an untrusted filename to the public directory without checking the resolved path. ' +
+      'An attacker can use ../ segments to read files outside the intended directory. ' +
+      'Your goal is to resolve the requested path and reject anything outside the public directory.',
+    targetEndpoint: 'GET /download?name=<filename>',
+    hints: [
+      'Try requesting ../secret/flag.txt and compare it with a normal request for readme.txt.',
+      'Resolve both the public directory and requested target to absolute paths before comparing them.',
+      'Only allow targets that start with the public directory plus path.sep.',
+    ],
+  },
+  'cmd-injection-ping': {
+    id: 'cmd-injection-ping',
+    title: 'Command Injection in Ping Tool',
+    vulnerability: 'command-injection',
+    description:
+      'The ping endpoint interpolates an untrusted host directly into a shell command. ' +
+      'Shell metacharacters can append arbitrary commands whose output is returned by the API. ' +
+      'Your goal is to validate the hostname and invoke ping without a shell.',
+    targetEndpoint: 'POST /ping',
+    hints: [
+      'Try adding a semicolon and a harmless printf command after the hostname.',
+      'exec passes one string to a shell; execFile accepts the executable and its argument array separately.',
+      'Allow only hostname characters before passing the value to execFile.',
+    ],
+  },
   'csrf-transfer': {
     id: 'csrf-transfer',
     title: 'Cross-Site Request Forgery in Transfer API',

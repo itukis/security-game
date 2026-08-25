@@ -1,54 +1,118 @@
--- Migration: store the best-scoring run's patch and lock the score to the maximum.
---
--- Apply this to any existing database with:
---   psql "$DATABASE_URL" -f supabase/migrations/add_best_score.sql
--- or paste it into the Supabase SQL editor.
+-- Secure scoring migration for both fresh and legacy SecureCodeArena projects.
+-- Run after schema.sql and before rls.sql.
 
--- 1. Add the patch column (nullable so existing rows are unaffected).
+-- Remove the v1 public leaderboard object before dropping its duplicated email
+-- column. Auth remains the only source of account email addresses.
+drop function if exists public.get_leaderboard(int);
+drop view if exists public.leaderboard;
+
+-- The v1 browser-callable scoring function is intentionally removed. The v2
+-- replacement in rls.sql is executable only by the service_role used by the
+-- orchestrator.
+drop function if exists public.upsert_completion(uuid, text, int, text);
+
+alter table public.profiles
+  drop column if exists email;
+
+alter table public.submission_history
+  add column if not exists score_mode text;
+alter table public.submission_history
+  add column if not exists score_awarded int;
+
+-- Legacy history rows predate score modes. Give them an explicit neutral mode
+-- before making the column mandatory.
+update public.submission_history
+set score_mode = 'editPreview'
+where score_mode is null;
+
+update public.submission_history as history
+set score_awarded = problem.base_score
+from public.problems as problem
+where history.problem_id = problem.id
+  and history.passed
+  and history.score_awarded is null;
+
+alter table public.submission_history
+  alter column score_mode set not null;
+
 alter table public.completed_problems
   add column if not exists patch text;
 
--- 2. Atomic best-score upsert function.
---    score only ever moves upward (GREATEST); patch tracks the best-scoring run's solution.
-create or replace function public.upsert_completion(
-  p_user_id    uuid,
-  p_problem_id text,
-  p_score      int,
-  p_patch      text
-)
-returns table(best_score int, first_clear bool)
-language plpgsql security definer set search_path = public
-as $$
-declare
-  v_score       int;
-  v_first_clear bool;
+do $$
 begin
-  -- Prevent a browser-side caller from writing another user's row.
-  -- Service-role callers have auth.uid() = null, so the check is skipped for them.
-  if auth.uid() is not null and p_user_id != auth.uid() then
-    raise exception 'permission denied';
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'profiles_display_name_length'
+      and conrelid = 'public.profiles'::regclass
+  ) then
+    alter table public.profiles
+      add constraint profiles_display_name_length
+      check (display_name is null or char_length(display_name) between 2 and 50);
   end if;
 
-  insert into public.completed_problems (user_id, problem_id, score, patch, completed_at)
-  values (p_user_id, p_problem_id, p_score, p_patch, now())
-  on conflict (user_id, problem_id) do update set
-    completed_at = excluded.completed_at,
-    -- Score only moves upward
-    score = greatest(completed_problems.score, excluded.score),
-    -- Patch follows the highest-scoring run; ties keep the existing patch
-    patch = case
-              when excluded.score > completed_problems.score then excluded.patch
-              else completed_problems.patch
-            end
-  returning
-    completed_problems.score,
-    -- xmax = 0 means no prior row existed (fresh INSERT, not UPDATE on conflict)
-    (xmax = 0)
-  into v_score, v_first_clear;
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'submission_score_mode'
+      and conrelid = 'public.submission_history'::regclass
+  ) then
+    alter table public.submission_history
+      add constraint submission_score_mode
+      check (score_mode in ('multipleChoice', 'editPreview', 'editOnly'));
+  end if;
 
-  return query select v_score, v_first_clear;
-end;
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'submission_score_range'
+      and conrelid = 'public.submission_history'::regclass
+  ) then
+    alter table public.submission_history
+      add constraint submission_score_range
+      check (score_awarded is null or score_awarded between 0 and 250);
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'submission_duration_nonnegative'
+      and conrelid = 'public.submission_history'::regclass
+  ) then
+    alter table public.submission_history
+      add constraint submission_duration_nonnegative
+      check (duration_ms is null or duration_ms >= 0);
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'submission_pass_score_consistency'
+      and conrelid = 'public.submission_history'::regclass
+  ) then
+    alter table public.submission_history
+      add constraint submission_pass_score_consistency
+      check ((passed and score_awarded is not null) or (not passed and score_awarded is null));
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'completed_score_range'
+      and conrelid = 'public.completed_problems'::regclass
+  ) then
+    alter table public.completed_problems
+      add constraint completed_score_range
+      check (score between 0 and 250);
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'problems_base_score_range'
+      and conrelid = 'public.problems'::regclass
+  ) then
+    alter table public.problems
+      add constraint problems_base_score_range
+      check (base_score between 0 and 250);
+  end if;
+end
 $$;
 
-grant execute on function public.upsert_completion(uuid, text, int, text)
-  to authenticated, anon;
+create index if not exists submission_history_user_created_idx
+  on public.submission_history (user_id, created_at desc);
+create index if not exists completed_problems_score_idx
+  on public.completed_problems (score desc);

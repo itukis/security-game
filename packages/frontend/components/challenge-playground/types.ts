@@ -36,7 +36,6 @@ export type PlaygroundModel = {
   previewApplyState: PreviewApplyState;
   previewApplyError: string | null;
   hintsRevealed: number;
-  manualHintsRevealed: number;
   selectedPatch?: PatchOption;
   isDockerBacked: boolean;
   hasAttacked: boolean;
@@ -68,7 +67,6 @@ export type PlaygroundActions = {
   handleResetMission: () => void;
   handleRevealHint: () => void;
   handleAutoRevealHint: () => void;
-  handleHintOpen: (index: number) => void;
   handlePreviewApply: () => void;
   handleSubmitPatch: () => void;
 };

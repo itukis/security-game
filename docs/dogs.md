@@ -1,5 +1,8 @@
 # SecurePatch Quest — 現状まとめ
 
+> これは2026-06-08時点の履歴資料です。現在の12問構成とデプロイ手順は
+> `README.md`、`docs/DEPLOY_XSERVER_CLOUDFLARE.md`、`supabase/SETUP.md`を参照してください。
+
 最終更新: 2026-06-08
 
 ---
@@ -157,15 +160,15 @@ security-game/
 ```env
 NEXT_PUBLIC_USE_MOCK=true
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable key>
 ```
 
 ### `packages/orchestrator/.env`
 ```env
 SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_JWKS_URL=https://.../.well-known/jwks.json
-SUPABASE_ANON_KEY=<anon key>
-SUPABASE_SERVICE_ROLE_KEY=<service role key>
+SUPABASE_PUBLISHABLE_KEY=<publishable key>
+SUPABASE_SECRET_KEY=<secret key>
 SUPABASE_JWT_SECRET=<jwt secret>
 ```
 

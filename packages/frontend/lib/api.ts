@@ -70,3 +70,21 @@ export async function getLeaderboard(): Promise<LeaderboardResponse> {
 
   return response.json();
 }
+
+export async function getMyCompletions(): Promise<Record<string, number>> {
+  if (USE_MOCK || !isSupabaseConfigured) return {};
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return {};
+
+  try {
+    const dashboard = await getDashboard();
+    return Object.fromEntries(
+      dashboard.completed.map((row) => [row.problem_id, row.score]),
+    );
+  } catch {
+    return {};
+  }
+}
