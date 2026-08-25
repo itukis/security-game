@@ -13,8 +13,7 @@ type AuthContextValue = {
   session: Session | null;
   loading: boolean;
   displayName: string | null;
-  signIn: (email: string, password: string) => AuthCallResult;
-  signUp: (email: string, password: string, displayName?: string) => AuthCallResult;
+  signInWithGoogle: () => AuthCallResult;
   signOut: () => SignOutResult;
   updateDisplayName: (name: string) => Promise<{ error: Error | null }>;
 };
@@ -52,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const signIn = useCallback((email: string, password: string) => {
+  const signInWithGoogle = useCallback(() => {
     if (!isSupabaseConfigured) {
       console.warn("Supabase not configured");
       return Promise.resolve({
@@ -61,22 +60,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     }
 
-    return supabase.auth.signInWithPassword({ email, password });
-  }, []);
-
-  const signUp = useCallback((email: string, password: string, displayName?: string) => {
-    if (!isSupabaseConfigured) {
-      console.warn("Supabase not configured");
-      return Promise.resolve({
-        data: null,
-        error: new Error("Supabase not configured"),
-      });
-    }
-
-    return supabase.auth.signUp({
-      email,
-      password,
-      options: displayName ? { data: { display_name: displayName } } : undefined,
+    return supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/login`,
+        scopes: "https://www.googleapis.com/auth/userinfo.email",
+      },
     });
   }, []);
 
@@ -102,13 +91,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       session,
       loading,
-      displayName: (user?.user_metadata?.display_name as string | undefined) ?? null,
-      signIn,
-      signUp,
+      displayName:
+        (user?.user_metadata?.display_name as string | undefined) ??
+        (user?.user_metadata?.full_name as string | undefined) ??
+        (user?.user_metadata?.name as string | undefined) ??
+        null,
+      signInWithGoogle,
       signOut,
       updateDisplayName,
     }),
-    [user, session, loading, signIn, signUp, signOut, updateDisplayName],
+    [user, session, loading, signInWithGoogle, signOut, updateDisplayName],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

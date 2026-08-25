@@ -76,6 +76,13 @@ install -m 0644 "$APP_DIR/deploy/systemd/caddy-securecodearena.conf" \
   /etc/systemd/system/caddy.service.d/securecodearena.conf
 install -m 0644 "$APP_DIR/deploy/Caddyfile" /etc/caddy/Caddyfile
 
+# The packaged Caddy service runs as the unprivileged `caddy` user. Ensure the
+# custom access-log target exists and remains writable across fresh installs.
+install -d -m 0750 -o caddy -g caddy /var/log/caddy
+touch /var/log/caddy/securecodearena-access.log
+chown caddy:caddy /var/log/caddy/securecodearena-access.log
+chmod 0640 /var/log/caddy/securecodearena-access.log
+
 chown -R "$ARENA_USER:$ARENA_USER" "$APP_DIR"
 
 runuser -u "$ARENA_USER" -- bash -c '
@@ -88,7 +95,10 @@ runuser -u "$ARENA_USER" -- bash -c '
   set -a
   . /etc/securecodearena/frontend.env
   set +a
-  npm ci
+  # frontend.env sets NODE_ENV=production, which makes npm omit devDependencies
+  # by default. Install with a one-command development override because the
+  # production build still needs PostCSS/Tailwind and TypeScript tooling.
+  NODE_ENV=development npm ci --include=dev
   npm run build
 '
 

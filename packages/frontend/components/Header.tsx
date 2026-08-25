@@ -106,6 +106,9 @@ export function Header() {
                 <Link href="/dashboard" className={linkClass}>
                   Dashboard
                 </Link>
+                <Link href="/profile" className={linkClass}>
+                  Profile
+                </Link>
                 <Link href="/leaderboard" className={linkClass}>
                   Leaderboard
                 </Link>
@@ -171,6 +174,9 @@ export function Header() {
                 </Link>
                 <Link href="/dashboard" onClick={closeMenu} className={mobileLinkClass}>
                   Dashboard
+                </Link>
+                <Link href="/profile" onClick={closeMenu} className={mobileLinkClass}>
+                  Profile
                 </Link>
                 <Link href="/leaderboard" onClick={closeMenu} className={mobileLinkClass}>
                   Leaderboard
