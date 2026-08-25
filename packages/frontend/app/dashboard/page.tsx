@@ -11,6 +11,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/Toast";
 import { getDashboard, type DashboardResponse } from "@/lib/api";
 import { classifyError, type ErrorKind } from "@/lib/errors";
+import { hasChosenDisplayName } from "@/lib/authProfile";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 function formatDate(value?: string | null) {
@@ -30,7 +31,7 @@ export default function DashboardPage() {
   const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !user) return;
+    if (!isSupabaseConfigured || !user || !hasChosenDisplayName(user)) return;
 
     let active = true;
 
@@ -57,6 +58,12 @@ export default function DashboardPage() {
     };
   }, [user, retryCount, toast]);
 
+  useEffect(() => {
+    if (!loading && user && !hasChosenDisplayName(user)) {
+      router.replace("/onboarding");
+    }
+  }, [loading, router, user]);
+
   async function handleLogout() {
     await signOut();
     router.push("/login");
@@ -66,7 +73,7 @@ export default function DashboardPage() {
     return <SupabaseRequiredNotice />;
   }
 
-  if (loading || dataLoading) {
+  if (loading || dataLoading || (user !== null && !hasChosenDisplayName(user))) {
     return (
       <div className="min-h-screen bg-slate-900 text-slate-100">
         <Header />
@@ -94,6 +101,8 @@ export default function DashboardPage() {
 
   const displayName =
     (user.user_metadata?.display_name as string | undefined) ||
+    (user.user_metadata?.full_name as string | undefined) ||
+    (user.user_metadata?.name as string | undefined) ||
     dashboard?.profile.display_name ||
     dashboard?.profile.email ||
     user.email ||
@@ -109,8 +118,21 @@ export default function DashboardPage() {
           <div>
             <p className="text-sm text-slate-400">Dashboard</p>
             <h1 className="text-2xl font-semibold">Welcome, {displayName}</h1>
+            <Link
+              className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-cyan-300 underline decoration-cyan-300/40 underline-offset-4 transition hover:text-cyan-100"
+              href="/profile"
+            >
+              表示名を変更
+              <span aria-hidden>→</span>
+            </Link>
           </div>
           <div className="flex items-center gap-3">
+            <Link
+              className="rounded-md border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:border-slate-500"
+              href="/profile"
+            >
+              Profile
+            </Link>
             <Link
               className="rounded-md border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:border-slate-500"
               href="/leaderboard"

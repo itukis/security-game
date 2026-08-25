@@ -155,7 +155,10 @@ export default function ProfilePage() {
   }
 
   const currentDisplayName =
-    (user.user_metadata?.display_name as string | undefined) || null;
+    (user.user_metadata?.display_name as string | undefined) ||
+    (user.user_metadata?.full_name as string | undefined) ||
+    (user.user_metadata?.name as string | undefined) ||
+    null;
   const email = dashboard?.profile.email ?? user.email ?? "-";
   const memberSince = formatMemberSince(user.created_at);
 
@@ -228,6 +231,9 @@ export default function ProfilePage() {
           <h2 className="mb-4 text-xs font-black uppercase tracking-[0.15em] text-zinc-500">
             表示名を変更
           </h2>
+          <p className="mb-4 text-sm text-zinc-400">
+            ここで設定した名前がDashboardとランキングに表示されます。本名以外の名前も使用できます。
+          </p>
           <form onSubmit={handleSaveName} className="flex items-end gap-3">
             <label className="flex-1">
               <span className="block text-sm font-semibold text-zinc-300">
